@@ -59,13 +59,13 @@ atikul = {
 | Phase | Topics | Status |
 |-------|--------|--------|
 | 1️⃣ Foundation | Python, NumPy, Pandas, EDA | ✅ Done |
-| 2️⃣ Mathematics | Linear Algebra, Calculus, Statistics | 🔥 In Progress |
-| 3️⃣ Machine Learning | Sklearn, Regression, Classification, Clustering | 🔥 In Progress |
-| 4️⃣ Deep Learning | PyTorch, CNN, RNN, Transformers | 📖 Learning |
-| 5️⃣ Specialization | NLP, CV, Reinforcement Learning | 🔜 Next |
-| 6️⃣ Research Level | arXiv Papers, GAN, Diffusion Models | 🎯 Goal |
-| 7️⃣ Deployment | FastAPI, Docker, MLOps, AWS | 🎯 Goal |
-| 8️⃣ Research Mindset | Kaggle, Open Source, Publish Papers | 🎯 Goal |
+| 2️⃣ Mathematics | Linear Algebra, Calculus, Statistics | ✅ Done |
+| 3️⃣ Machine Learning | Sklearn, Regression, Classification, Clustering | ✅ Done |
+| 4️⃣ Deep Learning | PyTorch, CNN, RNN, Transformers | ✅ Done |
+| 5️⃣ Specialization | NLP, CV, Reinforcement Learning | ✅ Done |
+| 6️⃣ Research Level | arXiv Papers, GAN, Diffusion Models | ✅ Done |
+| 7️⃣ Deployment | FastAPI, Docker, MLOps, AWS | ✅ Done |
+| 8️⃣ Research Mindset | Kaggle, Open Source, Publish Papers | ✅ Done|
 
 ---
 

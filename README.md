@@ -1,13 +1,10 @@
-## Hi there 👋
-
-<!--
 <div align="center">
 
 # 👋 Hi, I'm Atikul Islam
 
 ### 🤖 Aspiring AI/ML Researcher | Python Developer
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=6366F1&center=true&width=500&lines=AI+%2F+ML+Researcher+%F0%9F%A7%A0;Python+Developer+%F0%9F%90%8D;Open+to+Remote+Work+%F0%9F%9A%80;Learning+Deep+Learning+%F0%9F%94%A5)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&color=6366F1&center=true&width=500&lines=AI+%2F+ML+Researcher;Python+Developer;Open+to+Remote+Work+%F0%9F%9A%80;Learning+Deep+Learning+%F0%9F%94%A5)](https://git.io/typing-svg)
 
 </div>
 

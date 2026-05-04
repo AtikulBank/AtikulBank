@@ -1,5 +1,5 @@
 <div align="center">
-<img width="500" height="500" alt="ML AI (2)" src="https://github.com/user-attachments/assets/f04b8f7d-4e24-4238-9718-405559ec3a69" />
+<img width="358" height="153" alt="download (1)" src="https://github.com/user-attachments/assets/fc52ffc2-3e03-45c9-9ca5-f4fa1ba32b6f" />
 
 # 👋 Hi, I'm Atikul Islam
 

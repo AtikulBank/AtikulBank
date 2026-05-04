@@ -1,6 +1,5 @@
 <div align="center">
-<img width="358" height="153" alt="download (1)" src="https://github.com/user-attachments/assets/fc52ffc2-3e03-45c9-9ca5-f4fa1ba32b6f" />
-
+"C:\Users\Its Rakib\Downloads\ML AI.mp4"
 # 👋 Hi, I'm Atikul Islam
 
 ### 🧠 AI/ML Researcher in Progress | Python Developer

@@ -1,0 +1,43 @@
+# XAUUSD GOD BOT - Python Dependencies
+# Auto-installed on first run, but can be installed manually here
+
+# Core
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+
+# ML Frameworks
+torch>=2.0.0
+xgboost>=2.0.0
+lightgbm>=4.0.0
+catboost>=1.2
+optuna>=3.4.0
+river>=0.21.0
+
+# Data & APIs
+yfinance>=0.2.30
+requests>=2.31.0
+aiohttp>=3.9.0
+feedparser>=6.0.0
+
+# Technical Analysis
+ta>=0.11.0
+numba>=0.58.0
+
+# UI & Logging
+rich>=13.0.0
+pyyaml>=6.0
+openpyxl>=3.1.0
+
+# Time Series & Stats
+statsmodels>=0.14.0
+hmmlearn>=0.3.0
+nolds>=0.5.2
+
+# NLP
+transformers>=4.35.0
+
+# Data Formats
+pyarrow>=14.0.0
+joblib>=1.3.0

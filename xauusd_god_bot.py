@@ -291,8 +291,6 @@ class BotConfig:
 
     def to_yaml(self, path: str = "config.yaml") -> None:
         import dataclasses; data = dataclasses.asdict(self)
-        for key in ["mt5_password", "telegram_token"]:
-            if key in data and data[key]: data[key] = "***REDACTED***"
         with open(path, "w") as f: yaml.dump(data, f, default_flow_style=False)
 
     def ensure_dirs(self) -> None:
@@ -353,7 +351,7 @@ class DataFetcher:
         df["high"] = df[["high","open","close"]].max(axis=1)
         df["low"] = df[["low","open","close"]].min(axis=1)
         df["volume"] = df["volume"].replace(0, np.nan).ffill().fillna(1)
-        pct = df["close"].pct_change().abs(); df = df[pct <= 0.10]
+        pct = df["close"].pct_change().abs(); df = df[pct.fillna(0) <= 0.10]
         return df
 
     def get_live_tick(self) -> Dict[str, float]:
@@ -1551,7 +1549,7 @@ class RiskManager:
         risk = lot_size * sl_distance * 100
         if risk > self.equity * self.config.max_risk_per_trade * 1.5:
             return False, "Risk exceeds per-trade limit"
-        if abs(self.daily_pnl) > self.equity * self.config.max_daily_drawdown:
+        if self.daily_pnl < 0 and abs(self.daily_pnl) > self.equity * self.config.max_daily_drawdown:
             return False, "Daily drawdown limit reached"
         dd = (self.peak_equity - self.equity) / max(self.peak_equity, 1)
         if dd > self.config.max_total_drawdown:
@@ -1968,8 +1966,9 @@ class XAUUSDGodBot:
             self._features = self.feat_eng.generate_all_features(self._df)
         if self._features is not None and not self._features.empty and len(self._features) > 500:
             X = self._features.values[-5000:]
-            y = np.where(np.diff(self._df["close"].values[-5000:], prepend=0) > 0, 0,
-                         np.where(np.diff(self._df["close"].values[-5000:], prepend=0) < 0, 1, 2))
+            c_vals = self._df["close"].values[-5000:]
+            y = np.where(np.diff(c_vals, prepend=c_vals[0]) > 0, 0,
+                         np.where(np.diff(c_vals, prepend=c_vals[0]) < 0, 1, 2))
             y = y[:len(X)]
             self.ensemble.train_all(X, y); self._trained = True
             logger.info("All models trained successfully")
@@ -1985,7 +1984,8 @@ class XAUUSDGodBot:
                 price = tick["bid"]
                 closed = self.exec_eng.update_trades(price)
                 for t in closed:
-                    self.ensemble.update_weights(t.trade_id, t.pnl_usd > 0)
+                    for mname in self.ensemble.weights:
+                        self.ensemble.update_weights(mname, t.pnl_usd > 0)
                     self.learner.analyze_failed(t) if t.pnl_usd < 0 else None
                     self.learner.update_rates([t])
                 self._loop_count += 1

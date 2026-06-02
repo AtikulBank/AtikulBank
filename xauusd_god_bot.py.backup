@@ -174,13 +174,6 @@ try:
 except ImportError:
     NOLDS_AVAILABLE = False
 
-# QASE - Quantum-Algebraic Symmetry Engine
-try:
-    from xauusd_qase import QuantumAlgebraicSymmetryEngine
-    QASE_AVAILABLE = True
-except ImportError:
-    QASE_AVAILABLE = False
-
 T = TypeVar("T")
 ArrayLike = Union[np.ndarray, pd.Series, List[float]]
 ModelPrediction = Tuple[float, float]
@@ -1270,114 +1263,7 @@ class QuantumEngine:
                 if ce < be: best = cur.copy(); be = ce
         return best, be
 
-# SECTION 10 — QASE ENGINE (Quantum-Algebraic Symmetry Engine)
-
-class QASEEngine:
-    """
-    Wrapper for Quantum-Algebraic Symmetry Engine.
-    Integrates IUTT, p-adic, NCG, and HoTT frameworks.
-    """
-
-    def __init__(self, config: BotConfig = None):
-        self.config = config
-        self.qase = None
-        self.enabled = QASE_AVAILABLE
-
-        if self.enabled:
-            try:
-                # Initialize QASE with configuration
-                qase_config = {
-                    'iutt_window': getattr(config, 'iutt_window', 100) if config else 100,
-                    'iutt_deformation': getattr(config, 'iutt_deformation', 0.5) if config else 0.5,
-                    'prime_range': (2, 31),
-                    'hbar': 1.0,
-                    'dimension': 10
-                }
-                self.qase = QuantumAlgebraicSymmetryEngine(qase_config)
-                logger.info("QASE Engine initialized successfully")
-            except Exception as e:
-                logger.warning(f"Failed to initialize QASE Engine: {e}")
-                self.enabled = False
-
-    def analyze(self, prices: np.ndarray, order_book: pd.DataFrame = None,
-                macro_data: pd.DataFrame = None, market_state: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Perform QASE analysis on market data.
-
-        Args:
-            prices: Array of price data
-            order_book: Optional order book DataFrame
-            macro_data: Optional macro data DataFrame
-            market_state: Current market state information
-
-        Returns:
-            QASE analysis results
-        """
-        if not self.enabled or self.qase is None:
-            return {
-                "enabled": False,
-                "signal": {"direction": 0, "strength": 0.0, "confidence": 0.0},
-                "recommendation": {"action": "hold"},
-                "engines": {}
-            }
-
-        try:
-            # Convert prices to DataFrame if needed
-            if isinstance(prices, np.ndarray):
-                price_df = pd.DataFrame({
-                    'open': prices,
-                    'high': prices * 1.001,
-                    'low': prices * 0.999,
-                    'close': prices,
-                    'volume': np.random.randint(100, 1000, len(prices))
-                })
-            else:
-                price_df = prices
-
-            # Update market state if provided
-            if market_state:
-                self.qase.update_market_state(
-                    regime=market_state.get('regime', 'normal'),
-                    volatility=market_state.get('volatility', 0.02),
-                    liquidity=market_state.get('liquidity', 1.0),
-                    chaos_level=market_state.get('chaos_level', 'LOW')
-                )
-
-            # Perform analysis (without market_state parameter)
-            results = self.qase.full_analysis(price_df, order_book, macro_data)
-
-            return {
-                "enabled": True,
-                "signal": results.get("recommendation", {}),
-                "recommendation": results.get("recommendation", {}),
-                "engines": results.get("engines", {}),
-                "market_state": results.get("market_state", {})
-            }
-
-        except Exception as e:
-            logger.error(f"QASE analysis failed: {e}")
-            return {
-                "enabled": True,
-                "signal": {"direction": 0, "strength": 0.0, "confidence": 0.0},
-                "recommendation": {"action": "hold"},
-                "engines": {},
-                "error": str(e)
-            }
-
-    def get_status(self) -> Dict[str, Any]:
-        """Get QASE engine status."""
-        return {
-            "enabled": self.enabled,
-            "initialized": self.qase is not None,
-            "frameworks": {
-                "iutt": True,
-                "padic": True,
-                "ncg": True,
-                "hott": True
-            } if self.qase else {}
-        }
-
-# SECTION 11 — MACRO INTELLIGENCE FEEDS
+# SECTION 10 — MACRO INTELLIGENCE FEEDS
 
 class MacroIntelligence:
     def __init__(self, config: BotConfig) -> None:
@@ -1590,7 +1476,7 @@ class SignalScorer:
 
     def score(self, agreement: float, direction: float, technical_conf: float,
               smc_score: float, macro_score: float, risk_reward: float,
-              anomaly_ok: bool, regime: MarketRegime, qase_result: Dict[str, Any] = None) -> Tuple[int, str]:
+              anomaly_ok: bool, regime: MarketRegime) -> Tuple[int, str]:
         total = 0; reasons: List[str] = []
 
         # Model Agreement (0-200)
@@ -1612,16 +1498,6 @@ class SignalScorer:
         # Risk:Reward (0-200)
         rr = int(min(risk_reward / 3.0, 1.0) * 200)
         total += rr; reasons.append(f"R:R: {rr}/200")
-
-        # QASE Signal (0-200)
-        qase_score = 0
-        if qase_result and qase_result.get("enabled", False):
-            qase_signal = qase_result.get("signal", {})
-            qase_confidence = qase_signal.get("confidence", 0.0)
-            qase_strength = qase_signal.get("strength", 0.0)
-            qase_score = int(min(qase_confidence * qase_strength, 1.0) * 200)
-            total += qase_score
-            reasons.append(f"QASE: {qase_score}/200")
 
         # Penalties
         if not anomaly_ok: total = int(total * 0.3); reasons.append("ANOMALY PENALTY")
@@ -1949,7 +1825,7 @@ class TUIDashboard:
         self._data: Dict[str, Any] = {
             "tick": {"bid":0,"ask":0,"spread":0,"time":0,"volume":0},
             "signal": None, "trades": [], "models": [],
-            "learning": [], "quantum": {}, "qase": {}, "macro": {},
+            "learning": [], "quantum": {}, "macro": {},
             "smc": [], "reasoning": [], "backtest": {},
             "evolution": {}, "regime": "RANGING", "session": "OFF_HOURS",
             "equity": 0.0, "daily_pnl": 0.0, "win_rate": 0.0, "drawdown": 0.0,
@@ -1984,8 +1860,8 @@ class TUIDashboard:
         layout["p5"].update(self._panel_models())
         layout["p6"].update(self._panel_learning())
         layout["p7"].update(self._panel_quantum())
-        layout["p8"].update(self._panel_qase())
-        layout["p9"].update(self._panel_macro())
+        layout["p8"].update(self._panel_macro())
+        layout["p9"].update(self._panel_smc())
         layout["footer"].update(Panel(Text(
             f"  Equity: ${self._data['equity']:,.2f}  |  P&L: ${self._data['daily_pnl']:+,.2f}  |  "
             f"WR: {self._data['win_rate']:.1%}  |  DD: {self._data['drawdown']:.2%}  |  "
@@ -2051,45 +1927,6 @@ class TUIDashboard:
         tb.add_row("Horizon", f"{q.get('predictability_minutes',0)} min")
         return Panel(tb, border_style="white")
 
-    def _panel_qase(self) -> "Panel":
-        qase = self._data.get("qase", {})
-        tb = Table(title="QASE Engine", expand=True)
-        tb.add_column("Framework"); tb.add_column("Status", justify="right")
-
-        if qase.get("enabled", False):
-            # IUTT
-            iutt = qase.get("engines", {}).get("iutt", {})
-            iutt_status = "Active" if "equilibrium_point" in iutt else "Inactive"
-            tb.add_row("IUTT Alignment", iutt_status)
-
-            # p-adic
-            padic = qase.get("engines", {}).get("padic", {})
-            padic_status = "Active" if "langlands_signal" in padic else "Inactive"
-            tb.add_row("p-adic Quantum", padic_status)
-
-            # NCG
-            ncg = qase.get("engines", {}).get("ncg", {})
-            ncg_status = "Active" if "quantum_state" in ncg else "Inactive"
-            tb.add_row("Non-Commutative", ncg_status)
-
-            # HoTT
-            hott = qase.get("engines", {}).get("hott", {})
-            hott_status = "Active" if "manifold_size" in hott else "Inactive"
-            tb.add_row("Homotopy Type", hott_status)
-
-            # Signal
-            signal = qase.get("signal", {})
-            if signal:
-                action = signal.get("action", "hold")
-                confidence = signal.get("confidence", 0.0)
-                tb.add_row("Action", action.upper())
-                tb.add_row("Confidence", f"{confidence:.2f}")
-        else:
-            tb.add_row("Status", "Disabled")
-            tb.add_row("Reason", qase.get("error", "Not available"))
-
-        return Panel(tb, border_style="cyan")
-
     def _panel_macro(self) -> "Panel":
         m = self._data.get("macro", {})
         tb = Table(title="Macro Intel", expand=True)
@@ -2113,8 +1950,7 @@ class XAUUSDGodBot:
         self.ensemble = EnsembleOrchestrator(config)
         self.risk = RiskManager(config); self.exec_eng = ExecutionEngine(config, self.db, self.risk)
         self.regime_det = RegimeDetector(); self.smc = SMCAnalyzer()
-        self.quantum = QuantumEngine(); self.qase = QASEEngine(config)
-        self.macro = MacroIntelligence(config)
+        self.quantum = QuantumEngine(); self.macro = MacroIntelligence(config)
         self.sentiment = SentimentEngine(config); self.causal = CausalEngine()
         self.scorer = SignalScorer(); self.learner = SelfLearningSystem(config, self.db, self.ensemble)
         self.evolution = NeuralArchEvolution(config); self.diagnostic = SelfDiagnostic(self.ensemble, self.risk)
@@ -2185,23 +2021,6 @@ class XAUUSDGodBot:
         macro_score = self.macro.get_score()
         q_result = self.quantum.analyze(prices[-500:] if len(prices) >= 500 else prices)
         self.tui.update("quantum", q_result)
-
-        # QASE Analysis
-        market_state = {
-            "regime": regime.name,
-            "volatility": np.std(prices[-100:]) / np.mean(prices[-100:]) if len(prices) >= 100 else 0.02,
-            "liquidity": 0.8,
-            "chaos_level": q_result.get("chaos_level", "LOW")
-        }
-
-        qase_result = self.qase.analyze(
-            prices[-500:] if len(prices) >= 500 else prices,
-            order_book=None,  # Would need order book data
-            macro_data=self._df[["close"]].tail(100) if self._df is not None else None,
-            market_state=market_state
-        )
-        self.tui.update("qase", qase_result)
-
         self.tui.update("macro", self.macro.get_display())
         self.tui.update("smc", self.smc.get_display(price))
 
@@ -2219,7 +2038,7 @@ class XAUUSDGodBot:
         anomaly_ok = anomaly_pred[1] >= 0.5
         tech_conf = agreement * abs(direction)
 
-        score, reason = self.scorer.score(agreement, direction, tech_conf, smc_score, macro_score, rr, anomaly_ok, regime, qase_result)
+        score, reason = self.scorer.score(agreement, direction, tech_conf, smc_score, macro_score, rr, anomaly_ok, regime)
 
         reasoning = [f"Direction: {'BUY' if direction>0 else 'SELL'} ({direction:+.3f})",
                      f"Agreement: {agreement:.1%}", f"Score: {score}/1000",

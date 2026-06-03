@@ -1,57 +1,95 @@
-# XAUUSD GOD BOT
+# cTrader FIX 4.4 High-Frequency Trading Engine
 
-Autonomous AI Trading System for XAUUSD (Gold) trading with 28 ML models, 5 RL agents, and 800+ features.
+Ultra-low-latency trading engine for cTrader FIX API using pure Cython and raw C-sockets.
+
+## Architecture
+
+```
+ctrader_fix_engine/
+├── config/          # Configuration loader
+├── network/         # Raw C-socket implementation (Cython)
+├── protocol/        # FIX 4.4 encoder/decoder (Cython)
+├── engine/          # FIX session manager
+├── utils/           # Helper functions
+└── main.py          # Entry point
+```
 
 ## Features
 
-- **28 ML Models**: LSTM, Transformer, XGBoost, LightGBM, CatBoost, and more
-- **5 RL Trading Agents**: PPO, SAC, TD3, A3C, Dreamer V3
-- **800+ Features**: Price action, technical indicators, macro, sentiment
-- **12 Panel TUI Dashboard**: Real-time monitoring with Rich library
-- **Self-Learning**: Online learning with River, drift detection
-- **Self-Evolution**: DARTS, genetic algorithms, AutoML
-- **Signal Scoring**: 0-1000 points system
-
-## Quick Start
-
-```bash
-# Install dependencies (auto-installed on first run)
-pip install -r requirements.txt
-
-# Run in demo mode (paper trading)
-python xauusd_god_bot.py
-
-# Run backtest
-python xauusd_god_bot.py --mode backtest
-
-# Live trading (requires MetaTrader 5)
-python xauusd_god_bot.py --mode live
-```
+- **Pure Cython**: All critical paths compiled to C for maximum performance
+- **Raw C-Sockets**: Bypasses Python's socket overhead
+- **FIX 4.4 Protocol**: Full implementation of FIX 4.4 messaging
+- **Secure Configuration**: Credentials loaded from `.env` files
+- **Zero Hardcoded Secrets**: All sensitive data externalized
 
 ## Requirements
 
-- Python 3.9+
-- numpy, pandas, scipy
-- pytorch >= 2.0
-- xgboost, lightgbm, catboost
-- rich >= 13.0
-- See `REQUIRED_PACKAGES` in code for full list
+- Python 3.8+
+- Cython
+- GCC or compatible C compiler
 
-## Project Structure
+## Installation
 
-```
-xauusd_god_bot.py     # Main bot file (all-in-one)
-├── ML Models (28 total)
-├── RL Agents (5 total)
-├── Feature Engineering (800+ features)
-├── Risk Management
-├── TUI Dashboard (12 panels)
-└── Self-Learning System
+```bash
+# Install dependencies
+pip install cython setuptools
+
+# Build Cython extensions
+python setup.py build_ext --inplace
 ```
 
-## ⚠️ Disclaimer
+## Configuration
 
-This software is for **educational purposes only**. Trading financial instruments involves **substantial risk of loss**. Past performance does not guarantee future results. Use at your own risk.
+Create a `.env` file in the project root:
+
+```env
+FIX_HOST=live.ctrader.com
+FIX_PORT=5222
+SENDER_COMP_ID=YOUR_SENDER_ID
+TARGET_COMP_ID=cServer
+SENDER_SUB_ID=TRADE
+FIX_PASSWORD=YOUR_PASSWORD
+```
+
+## Usage
+
+```python
+from ctrader_fix_engine.config import load_config
+from ctrader_fix_engine.engine import FixSession
+
+# Load configuration
+config = load_config()
+
+# Create session
+session = FixSession(config)
+
+# Connect and logon
+session.connect()
+session.logon(config.password)
+
+# Send order
+session.send_new_order(
+    cl_ord_id="ORD-001",
+    symbol="XAUUSD",
+    side="1",  # Buy
+    quantity=1.0,
+    price=2350.50
+)
+```
+
+## Security
+
+- **Never commit `.env` files** to version control
+- Use environment variables in production
+- Rotate credentials regularly
+- Monitor connection logs
+
+## Performance
+
+- Cython compilation with `-O3` optimization
+- Native CPU architecture tuning
+- Minimal memory allocation in hot paths
+- TCP_NODELAY for minimal latency
 
 ## License
 

@@ -1,11 +1,10 @@
 """
-Setup script for cTrader HFT Engine
-Compiles Cython extensions for ultra-low-latency performance
+cTrader FIX 4.4 Engine - Build Script
+Compiles Cython extensions for maximum performance
 """
 
 from setuptools import setup, Extension
 from Cython.Build import cythonize
-import numpy as np
 
 # Compiler directives for maximum performance
 compiler_directives = {
@@ -21,52 +20,45 @@ compiler_directives = {
 # Define Cython extensions
 extensions = [
     Extension(
-        name="ctrader_hft_engine.core.network.hft_socket",
-        sources=["ctrader_hft_engine/core/network/hft_socket.pyx"],
-        include_dirs=[np.get_include()],
+        "ctrader_fix_engine.network.socket",
+        sources=["ctrader_fix_engine/network/socket.pyx"],
         extra_compile_args=["-O3", "-march=native", "-mtune=native"],
-        extra_link_args=["-O3"],
     ),
     Extension(
-        name="ctrader_hft_engine.core.fix.fix_encoder",
-        sources=["ctrader_hft_engine/core/fix/fix_encoder.pyx"],
-        include_dirs=[np.get_include()],
+        "ctrader_fix_engine.protocol.encoder",
+        sources=["ctrader_fix_engine/protocol/encoder.pyx"],
         extra_compile_args=["-O3", "-march=native", "-mtune=native"],
-        extra_link_args=["-O3"],
     ),
     Extension(
-        name="ctrader_hft_engine.core.fix.fix_decoder",
-        sources=["ctrader_hft_engine/core/fix/fix_decoder.pyx"],
-        include_dirs=[np.get_include()],
+        "ctrader_fix_engine.protocol.decoder",
+        sources=["ctrader_fix_engine/protocol/decoder.pyx"],
         extra_compile_args=["-O3", "-march=native", "-mtune=native"],
-        extra_link_args=["-O3"],
     ),
 ]
 
+# Setup configuration
 setup(
-    name="ctrader_hft_engine",
+    name="ctrader-fix-engine",
     version="1.0.0",
-    description="Ultra-Low-Latency Cython HFT Engine for cTrader FIX API",
-    long_description=open("README.md").read() if __file__ else "",
+    author="cTrader HFT Engine",
+    description="cTrader FIX 4.4 High-Frequency Trading Engine",
+    long_description=open("README.md").read() if __name__ == "__main__" else "",
     long_description_content_type="text/markdown",
-    author="HFT Architecture Team",
-    packages=[
-        "ctrader_hft_engine",
-        "ctrader_hft_engine.core",
-        "ctrader_hft_engine.core.network",
-        "ctrader_hft_engine.core.fix",
-        "ctrader_hft_engine.utils",
-        "ctrader_hft_engine.config",
-    ],
+    packages=["ctrader_fix_engine"],
+    package_dir={"ctrader_fix_engine": "ctrader_fix_engine"},
     ext_modules=cythonize(
         extensions,
         compiler_directives=compiler_directives,
-        nthreads=4,
+        annotate=False,  # Set to True to generate HTML annotation
     ),
     python_requires=">=3.8",
-    install_requires=[
-        "numpy>=1.21.0",
-        "cython>=0.29.0",
+    classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Financial and Insurance Industry",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Cython",
+        "Topic :: Office/Business :: Financial :: Investment",
     ],
-    zip_safe=False,
 )

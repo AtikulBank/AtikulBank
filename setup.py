@@ -33,6 +33,11 @@ extensions = [
         sources=["fix_pipeline/order_encoder.pyx"],
         extra_compile_args=["-O3", "-march=native", "-mtune=native"],
     ),
+    Extension(
+        "fix_pipeline.fix_decoder",
+        sources=["fix_pipeline/fix_decoder.pyx"],
+        extra_compile_args=["-O3", "-march=native", "-mtune=native"],
+    ),
 ]
 
 # Setup configuration

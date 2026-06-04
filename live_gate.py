@@ -13,7 +13,7 @@ import random
 from quantum_brain import QuantumMathEngine, IntelligenceMatrix
 
 # FIX Pipeline imports
-from fix_pipeline import TcpSocket, FixEncoder, SocketError
+from fix_pipeline import TcpSocket, FixEncoder, FixDecoder, SocketError, FixMsgType
 
 
 def signal_handler(signum, frame):
@@ -69,8 +69,10 @@ def main():
         sender_sub_id=SENDER_SUB_ID,
         heartbeat_interval=30
     )
+    decoder = FixDecoder()
     socket = TcpSocket(host=FIX_HOST, port=FIX_PORT, timeout=30.0)
     print("  Order encoder: READY")
+    print("  Decoder: READY")
     print("  Network socket: READY")
     print()
 
@@ -91,8 +93,21 @@ def main():
             logon_msg = encoder.create_logon(FIX_PASSWORD)
             socket.send(logon_msg.replace("|", "\x01").encode('ascii'))
             print("  Logon sent!")
+            time.sleep(1)  # Wait for logon response
+
+            # Subscribe to market data for XAUUSD
+            print("[SUBSCRIBE] Requesting live XAUUSD market data...")
+            md_request = decoder.create_market_data_request(
+                symbol="XAUUSD",
+                sender=SENDER_COMP_ID,
+                target=TARGET_COMP_ID,
+                sub_id=SENDER_SUB_ID,
+                request_id="XAUUSD_MD_1"
+            )
+            socket.send(md_request.replace("|", "\x01").encode('ascii'))
+            print("  Market data subscription sent!")
         except Exception as e:
-            print(f"  Logon failed: {e}")
+            print(f"  Logon/Subscribe failed: {e}")
 
     # Main engine loop
     print()
@@ -105,17 +120,70 @@ def main():
     sell_count = 0
     hold_count = 0
     start_time = time.time()
+    live_bid = 0.0
+    live_ask = 0.0
+    demo_mode = socket is None
+
+    def receive_and_decode():
+        """Receive FIX message from socket and decode it"""
+        nonlocal live_bid, live_ask
+        if not socket or not socket.is_connected:
+            return None
+        try:
+            raw_data = socket.recv(65536)
+            if raw_data:
+                decoded = raw_data.decode('ascii', errors='ignore')
+                result = decoder.decode_message(decoded)
+                if result["type"] in ("market_data_snapshot", "market_data_incremental"):
+                    tick = result["tick"]
+                    if tick.bid_price > 0:
+                        live_bid = tick.bid_price
+                    if tick.ask_price > 0:
+                        live_ask = tick.ask_price
+                    print(f"  [LIVE] {tick.symbol} | Bid={tick.bid_price:.5f} | Ask={tick.ask_price:.5f} | Seq={tick.msg_seq_num}")
+                    return result
+                elif result["type"] == "heartbeat":
+                    return result
+                elif result["type"] == "logon":
+                    print("  [LOGON] Server confirmed logon")
+                    return result
+                elif result["type"] == "reject":
+                    print(f"  [REJECT] {result.get('text', 'Unknown')}")
+                    return result
+                else:
+                    return result
+        except SocketError as e:
+            if "timeout" not in str(e).lower():
+                print(f"  [ERROR] {e}")
+        except Exception as e:
+            pass
+        return None
 
     try:
         while True:
             tick_count += 1
 
-            # Generate simulated tick (replace with real feed)
-            base_price = 2350.0 + random.uniform(-0.5, 0.5)
-            timestamp = time.time()
-            bid = base_price
-            ask = base_price + 0.10
-            volume = random.uniform(0.1, 1.0)
+            # Receive live data from cTrader
+            if not demo_mode:
+                # Try to receive multiple messages
+                for _ in range(10):
+                    receive_and_decode()
+
+            # Use live prices if available, otherwise use demo mode
+            if live_bid > 0 and live_ask > 0:
+                timestamp = time.time()
+                bid = live_bid
+                ask = live_ask
+                volume = random.uniform(0.1, 1.0)
+            else:
+                # Demo mode with simulated tick
+                base_price = 2350.0 + random.uniform(-0.5, 0.5)
+                timestamp = time.time()
+                bid = base_price
+                ask = base_price + 0.10
+                volume = random.uniform(0.1, 1.0)
+                if tick_count == 1:
+                    print("  [DEMO] Using simulated ticks - waiting for live feed...")
 
             # STAGE 1: Quantum Mathematical Filters
             quantum_metrics = quantum_engine.process_tick(

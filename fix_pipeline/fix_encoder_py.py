@@ -11,10 +11,12 @@ class FixEncoder:
     """FIX 4.4 Message Encoder - Pure Python implementation"""
     
     def __init__(self, sender_comp_id: str, target_comp_id: str,
-                 sender_sub_id: str, heartbeat_interval: int = 30):
+                 sender_sub_id: str, target_sub_id: str = "TRADE",
+                 heartbeat_interval: int = 30):
         self._sender_comp_id = sender_comp_id
         self._target_comp_id = target_comp_id
         self._sender_sub_id = sender_sub_id
+        self._target_sub_id = target_sub_id
         self._sequence_number = 0
         self._heartbeat_interval = heartbeat_interval
     
@@ -62,7 +64,7 @@ class FixEncoder:
         msg += f"56=CSERVER|"  # TargetCompID (cTrader requires uppercase)
         msg += f"34={self._sequence_number}|"  # MsgSeqNum
         msg += f"52={self._timestamp()}|"  # SendingTime
-        msg += f"57=TRADE|"  # TargetSubID
+        msg += f"57={self._target_sub_id}|"  # TargetSubID
         msg += f"50={self._sender_sub_id}|"  # SenderSubID
         msg += f"98=0|"  # EncryptMethod
         msg += f"108={self._heartbeat_interval}|"  # HeartBtInt

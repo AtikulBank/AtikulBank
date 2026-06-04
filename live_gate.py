@@ -61,6 +61,7 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
             sender_comp_id=sender_comp_id,
             target_comp_id=target_comp_id,
             sender_sub_id=sender_sub_id,
+            target_sub_id=sender_sub_id,  # TargetSubID same as SenderSubID
             heartbeat_interval=30
         )
         decoder = FixDecoder()

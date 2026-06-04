@@ -70,7 +70,12 @@ class FixDecoder:
 
     def decode_message(self, raw_message: str):
         """Decode a raw FIX message string"""
-        msg = raw_message.replace("\\x01", "|").replace("\x01", "|")
+        # FIX protocol uses \x01 (SOH) as delimiter
+        # Replace with | for easier parsing
+        msg = raw_message.replace("\x01", "|")
+        
+        # Handle case where \x01 is escaped as string
+        msg = msg.replace("\\x01", "|")
 
         # Parse tags preserving order for repeating groups
         tag_list = []
@@ -94,6 +99,8 @@ class FixDecoder:
             return self._parse_logon(tags)
         elif msg_type == FixMsgType.HEARTBEAT.value:
             return {"type": "heartbeat", "tags": tags}
+        elif msg_type == FixMsgType.TEST_REQUEST.value:
+            return {"type": "test_request", "tags": tags}
         elif msg_type == FixMsgType.LOGOUT.value:
             return {"type": "logout", "tags": tags}
         elif msg_type == FixMsgType.REJECT.value:

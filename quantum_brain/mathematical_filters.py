@@ -761,10 +761,13 @@ class QuantumMathEngine:
         if len(returns) >= 20:
             arr = np.array(returns[-20:])
             divergence = 0.0
+            count = 0
             for i in range(1, len(arr)):
-                if abs(arr[i-1]) > 1e-10:
-                    divergence += math.log(abs(arr[i] / arr[i-1]))
-            m.lyapunov_exponent = float(divergence / max(len(arr) - 1, 1))
+                ratio = abs(arr[i] / arr[i-1]) if abs(arr[i-1]) > 1e-10 else 1.0
+                if ratio > 1e-10:  # Ensure positive ratio for log
+                    divergence += math.log(ratio)
+                    count += 1
+            m.lyapunov_exponent = float(divergence / max(count, 1))
 
         # 13. Entropy Measures
         if len(returns) >= 10:

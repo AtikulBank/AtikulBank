@@ -8,7 +8,7 @@ import time
 from datetime import datetime, timezone
 
 
-cdef class FixEncoder:
+cdef class FixEncoder(object):
     """
     FIX 4.4 Message Encoder
     Constructs FIX protocol messages with minimal overhead
@@ -29,17 +29,23 @@ cdef class FixEncoder:
         self._sequence_number = 0
         self._heartbeat_interval = heartbeat_interval
 
-    cpdef str create_logon(self, str password, bint reset=False):
-        """Create FIX Logon message (MsgType=A)"""
+    cpdef str create_logon(self, str password, bint reset=True):
+        """Create FIX Logon message (MsgType=A) for cTrader"""
         self._sequence_number += 1
+        # Extract numeric username from SenderCompID (e.g., demo.ctrader.5832984 -> 5832984)
+        username = self._sender_comp_id.split(".")[-1] if "." in self._sender_comp_id else self._sender_comp_id
         msg = f"8=FIX.4.4|9=0|35=A|34={self._sequence_number}|"
-        msg += f"49={self._sender_comp_id}|56={self._target_comp_id}|"
+        msg += f"49={self._sender_comp_id}|"
+        msg += f"56=CSERVER|"  # cTrader requires uppercase CSERVER
         if self._sender_sub_id:
             msg += f"50={self._sender_sub_id}|"
+        msg += f"57=TRADE|"  # TargetSubID
         msg += f"52={self._timestamp()}|"
-        msg += f"98=0|108={self._heartbeat_interval}|"
+        msg += f"98=0|"
+        msg += f"108={self._heartbeat_interval}|"
         if reset:
             msg += "141=Y|"
+        msg += f"553={username}|"  # Username tag (numeric trader login)
         msg += f"554={password}|"
         msg = self._add_body_length(msg)
         msg = self._add_checksum(msg)
@@ -121,16 +127,34 @@ cdef class FixEncoder:
         return f"{quantity:.5f}"
 
     cdef str _add_body_length(self, str msg):
+        # FIX Body Length calculation:
+        # Body length = number of bytes from tag 35 (MsgType) to just before tag 10 (Checksum)
+        # Including the delimiters (\x01) between each tag
+        
+        # First, remove the temporary 9=0| placeholder
         msg = msg.replace("9=0|", "", 1)
+        
+        # Find where the body starts (after header 8=FIX.4.4|)
         header = "8=FIX.4.4|"
         body = msg[len(header):]
-        body_length = len(body)
+        
+        # Calculate body length - should NOT include the checksum tag
+        # In FIX, body length is from tag 35 to just before tag 10
+        # So we need to remove the trailing | before calculating
+        body_without_trailing = body.rstrip("|")
+        body_length = len(body_without_trailing) + 1  # +1 for the delimiter before tag 10
+        
+        # Replace the body length placeholder
         msg = f"8=FIX.4.4|9={body_length}|{body}"
         return msg
 
     cdef str _add_checksum(self, str msg):
+        # FIX Checksum is calculated over the wire format (with \x01 delimiters)
+        # Per FIX spec: checksum = sum of all bytes from tag 8 through 10=000\x01
+        wire_msg = msg.replace("|", "\x01")
+        wire_msg += "10=000\x01"  # Add placeholder for checksum calculation
         checksum = 0
-        for c in msg.encode('ascii'):
+        for c in wire_msg.encode('ascii'):
             checksum += c
         checksum = checksum % 256
         msg = f"{msg}10={checksum:03d}|"

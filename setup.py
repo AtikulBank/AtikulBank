@@ -1,6 +1,6 @@
 """
-cTrader FIX 4.4 Engine - Build Script
-Compiles Cython extensions for maximum performance
+Quantum Trading Machine - Build Script
+Compiles all Cython extensions for maximum performance
 """
 
 from setuptools import setup, Extension
@@ -10,7 +10,7 @@ from Cython.Build import cythonize
 compiler_directives = {
     'language_level': 3,
     'boundscheck': False,
-    'wraparound': False,
+
     'cdivision': True,
     'nonecheck': False,
     'overflowcheck': False,
@@ -19,37 +19,36 @@ compiler_directives = {
 
 # Define Cython extensions
 extensions = [
+    # Quantum Brain
+
+
+    # FIX Pipeline
     Extension(
-        "ctrader_fix_engine.network.socket",
-        sources=["ctrader_fix_engine/network/socket.pyx"],
+        "fix_pipeline.network_layer",
+        sources=["fix_pipeline/network_layer.pyx"],
         extra_compile_args=["-O3", "-march=native", "-mtune=native"],
     ),
     Extension(
-        "ctrader_fix_engine.protocol.encoder",
-        sources=["ctrader_fix_engine/protocol/encoder.pyx"],
-        extra_compile_args=["-O3", "-march=native", "-mtune=native"],
-    ),
-    Extension(
-        "ctrader_fix_engine.protocol.decoder",
-        sources=["ctrader_fix_engine/protocol/decoder.pyx"],
+        "fix_pipeline.order_encoder",
+        sources=["fix_pipeline/order_encoder.pyx"],
         extra_compile_args=["-O3", "-march=native", "-mtune=native"],
     ),
 ]
 
 # Setup configuration
 setup(
-    name="ctrader-fix-engine",
-    version="1.0.0",
-    author="cTrader HFT Engine",
-    description="cTrader FIX 4.4 High-Frequency Trading Engine",
+    name="quantum-trading-machine",
+    version="2.0.0",
+    author="Quantum HFT Engine",
+    description="Institutional Quantum Trading Engine - Pure Cython + Raw C-Sockets",
     long_description=open("README.md").read() if __name__ == "__main__" else "",
     long_description_content_type="text/markdown",
-    packages=["ctrader_fix_engine"],
-    package_dir={"ctrader_fix_engine": "ctrader_fix_engine"},
+    packages=["quantum_brain", "fix_pipeline"],
+    package_dir={"quantum_brain": "quantum_brain", "fix_pipeline": "fix_pipeline"},
     ext_modules=cythonize(
         extensions,
         compiler_directives=compiler_directives,
-        annotate=False,  # Set to True to generate HTML annotation
+        annotate=False,
     ),
     python_requires=">=3.8",
     classifiers=[

@@ -61,7 +61,7 @@ class FixEncoder:
         # Match exact order from official cTrader sample
         msg = f"8=FIX.4.4|9=0|35=A|"
         msg += f"49={self._sender_comp_id}|"  # SenderCompID
-        msg += f"56=CSERVER|"  # TargetCompID (cTrader requires uppercase)
+        msg += f"56={self._target_comp_id}|"  # TargetCompID
         msg += f"34={self._sequence_number}|"  # MsgSeqNum
         msg += f"52={self._timestamp()}|"  # SendingTime
         msg += f"57={self._target_sub_id}|"  # TargetSubID

@@ -11,6 +11,8 @@ import signal
 import time
 import socket
 import ssl
+from dotenv import load_dotenv
+load_dotenv()
 
 # Quantum Brain imports - Full integration with upgraded modules
 from quantum_brain import (
@@ -167,19 +169,14 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Load configuration from .env
+    # Load configuration from .env (dotenv already loaded at top of file)
     print("[CONFIG] Loading .env configuration...")
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-    except ImportError:
-        pass
 
     import os
     FIX_HOST = os.getenv('FIX_HOST', 'demo-uk-eqx-01.p.c-trader.com')
     SENDER_COMP_ID = os.getenv('SENDER_COMP_ID', 'demo.ctrader.5832984')
-    TARGET_COMP_ID = os.getenv('TARGET_COMP_ID', 'CSERVER')
-    FIX_PASSWORD = os.getenv('FIX_PASSWORD', '')
+    TARGET_COMP_ID = os.getenv('TARGET_COMP_ID', 'cServer')
+    FIX_PASSWORD = os.getenv('FIX_PASSWORD', '').strip().strip('"').strip("'")
 
     print(f"  Host: {FIX_HOST}")
     print(f"  SenderCompID: {SENDER_COMP_ID}")

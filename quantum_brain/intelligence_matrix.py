@@ -50,6 +50,7 @@ class ModelCategory(Enum):
     """Categories of ML/RL models"""
     TECHNICAL = auto()
     STATISTICAL = auto()
+    LINEAR = auto()
     MACHINE_LEARNING = auto()
     DEEP_LEARNING = auto()
     REINFORCEMENT_LEARNING = auto()

@@ -3,7 +3,10 @@ FIX Pipeline - High-Speed Routing
 Direct connection to cTrader FIX gateway
 """
 
-from .network_layer import TcpSocket, SocketError
+try:
+    from .network_layer import TcpSocket, SocketError
+except ImportError:
+    from .network_layer import TcpSocket, SocketError
 
 # Use pure Python encoder (Cython version has segfault issue)
 from .fix_encoder_py import FixEncoder

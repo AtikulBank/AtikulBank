@@ -152,8 +152,8 @@ class PriceActionSystem:
         sl = trade.sl
         tp1 = trade.tp1
         
-        # Simple simulation
-        max_bars = min(self.max_bars_in_trade, len(prices) - index - 1)
+        # Simple simulation - NO TIME EXIT (wait for TP or SL)
+        max_bars = min(100, len(prices) - index - 1)  # Wait up to 100 bars
         exit_price = entry
         exit_reason = "TIME_EXIT"
         
@@ -182,6 +182,10 @@ class PriceActionSystem:
                     exit_price = sl
                     exit_reason = "SL_HIT"
                     break
+        
+        # If no TP/SL hit, use last price (still counts as win if profitable)
+        if exit_reason == "TIME_EXIT":
+            exit_price = prices[min(index + max_bars, len(prices)-1)]
         
         # Calculate PnL
         if trade.direction == SignalDirection.BUY:
@@ -238,7 +242,7 @@ def run_backtest():
     
     # Run backtest
     print("\nRunning backtest...")
-    for i in range(50, n_bars - 20):
+    for i in range(100, n_bars - 20):  # Start from 100 to have enough data
         # Generate signal
         trade = system.generate_signal(prices, i)
         

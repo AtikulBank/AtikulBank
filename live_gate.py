@@ -13,7 +13,6 @@ import socket
 import ssl
 import os
 from dotenv import load_dotenv
-load_dotenv()
 
 # Quantum Brain imports - Full integration with upgraded modules
 from quantum_brain import (
@@ -32,31 +31,27 @@ def validate_config():
     """Validate FIX configuration from .env file"""
     password = os.getenv('FIX_PASSWORD', '')
     if not password or password in ['your_fix_api_password_here', '']:
-        print("ERROR: FIX_PASSWORD not set in .env file!")
-        print("Go to cTrader → Settings → FIX API → Change Password")
-        print("Then set FIX_PASSWORD=yourpassword in .env")
+        print("ERROR: FIX_PASSWORD not set in .env file!", flush=True)
+        print("Go to cTrader → Settings → FIX API → Change Password", flush=True)
+        print("Then set FIX_PASSWORD=yourpassword in .env", flush=True)
         sys.exit(1)
     
     # Check for non-ASCII characters (Bengali etc)
     try:
         password.encode('ascii')
     except UnicodeEncodeError:
-        print("ERROR: FIX_PASSWORD contains non-ASCII characters!")
-        print("Use only English letters, numbers, and basic symbols")
+        print("ERROR: FIX_PASSWORD contains non-ASCII characters!", flush=True)
+        print("Use only English letters, numbers, and basic symbols", flush=True)
         sys.exit(1)
     
     # Warn about # character
     if '#' in password:
-        print("WARNING: Password contains # which breaks .env parsing!")
-        print("Wrap it in quotes: FIX_PASSWORD=\"your#pass\"")
-
-
-# Validate configuration after function definition
-validate_config()
+        print("WARNING: Password contains # which breaks .env parsing!", flush=True)
+        print("Wrap it in quotes: FIX_PASSWORD=\"your#pass\"", flush=True)
 
 
 def signal_handler(signum, frame):
-    print("\n[SHUTDOWN] Power off...")
+    print("\n[SHUTDOWN] Power off...", flush=True)
     sys.exit(0)
 
 
@@ -65,7 +60,7 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
     Try to connect to cTrader FIX gateway and login.
     Returns (success, socket, encoder, decoder) tuple.
     """
-    print(f"\n[CONNECT] Attempting connection to {host}:{port}...")
+    print(f"\n[CONNECT] Attempting connection to {host}:{port}...", flush=True)
     
     # Create SSL context
     context = ssl.create_default_context()
@@ -80,11 +75,11 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
     try:
         # Connect
         sock.connect((host, port))
-        print(f"  [CONNECT] TCP connected to {host}:{port}")
+        print(f"  [CONNECT] TCP connected to {host}:{port}", flush=True)
         
         # Wrap with SSL
         ssl_sock = context.wrap_socket(sock, server_hostname=host)
-        print(f"  [CONNECT] SSL handshake completed")
+        print(f"  [CONNECT] SSL handshake completed", flush=True)
         
         # Create encoder/decoder
         encoder = FixEncoder(
@@ -98,16 +93,19 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
         
         # Create logon message with ResetSeqNumFlag=Y
         logon_msg = encoder.create_logon(password, reset=True)
-        print(f"  [LOGON] Sending logon message with ResetSeqNumFlag=Y...")
-        print(f"  [LOGON] Raw message: {logon_msg}")
+        print(f"  [LOGON] Sending logon message with ResetSeqNumFlag=Y...", flush=True)
+        print(f"  [LOGON] Raw message: {logon_msg}", flush=True)
         
         # Send logon
         logon_bytes = encoder.to_wire(logon_msg)
+        # Ensure SOH delimiter at end
+        if not logon_bytes.endswith(b"\x01"):
+            logon_bytes += b"\x01"
         ssl_sock.sendall(logon_bytes)
-        print(f"  [LOGON] Sent {len(logon_bytes)} bytes")
+        print(f"  [LOGON] Sent {len(logon_bytes)} bytes", flush=True)
         
         # Wait for response with detailed logging
-        print(f"  [LOGON] Waiting for server response (timeout=30s)...")
+        print(f"  [LOGON] Waiting for server response (timeout=30s)...", flush=True)
         ssl_sock.settimeout(30.0)
         
         # Try to receive data
@@ -127,59 +125,59 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
                     except BlockingIOError:
                         break
         except socket.timeout:
-            print(f"  [ERROR] Socket timeout - no response from server")
+            print(f"  [ERROR] Socket timeout - no response from server", flush=True)
             ssl_sock.close()
             return False, None, None, None
         except Exception as e:
-            print(f"  [ERROR] Failed to receive: {e}")
+            print(f"  [ERROR] Failed to receive: {e}", flush=True)
             ssl_sock.close()
             return False, None, None, None
         
         if raw_data:
-            print(f"  [RECV] Received {len(raw_data)} bytes from server")
-            print(f"  [RECV] Raw bytes (hex): {raw_data[:200].hex()}")
+            print(f"  [RECV] Received {len(raw_data, flush=True)} bytes from server")
+            print(f"  [RECV] Raw bytes (hex, flush=True): {raw_data[:200].hex()}")
             
             # Decode and show raw response
             try:
                 decoded = raw_data.decode('ascii', errors='replace')
                 # Replace SOH with | for readability
                 readable = decoded.replace('\x01', '|')
-                print(f"  [RECV] Decoded message:\n{readable[:500]}")
+                print(f"  [RECV] Decoded message:\n{readable[:500]}", flush=True)
                 
                 # Try to parse with decoder
                 result = decoder.decode_message(decoded)
-                print(f"  [RECV] Parsed type: {result.get('type', 'unknown')}")
+                print(f"  [RECV] Parsed type: {result.get('type', 'unknown', flush=True)}")
                 
                 if result.get("type") == "logon":
-                    print(f"  [LOGON] SUCCESS - Server confirmed logon!")
+                    print(f"  [LOGON] SUCCESS - Server confirmed logon!", flush=True)
                     return True, ssl_sock, encoder, decoder
                 elif result.get("type") == "reject":
-                    print(f"  [REJECT] Logon rejected: {result.get('text', 'Unknown')}")
+                    print(f"  [REJECT] Logon rejected: {result.get('text', 'Unknown', flush=True)}")
                 elif result.get("type") == "logout":
-                    print(f"  [LOGOUT] Server logged out: {result.get('text', '')}")
+                    print(f"  [LOGOUT] Server logged out: {result.get('text', '', flush=True)}")
                 else:
-                    print(f"  [UNKNOWN] Unknown response type: {result.get('type', 'unknown')}")
+                    print(f"  [UNKNOWN] Unknown response type: {result.get('type', 'unknown', flush=True)}")
             except Exception as e:
-                print(f"  [ERROR] Failed to decode response: {e}")
-                print(f"  [ERROR] Raw response: {raw_data}")
+                print(f"  [ERROR] Failed to decode response: {e}", flush=True)
+                print(f"  [ERROR] Raw response: {raw_data}", flush=True)
         else:
-            print(f"  [ERROR] No data received from server")
-            print(f"  [ERROR] Connection may have been closed or server is ignoring us")
+            print(f"  [ERROR] No data received from server", flush=True)
+            print(f"  [ERROR] Connection may have been closed or server is ignoring us", flush=True)
         
         ssl_sock.close()
         return False, None, None, None
         
     except socket.timeout:
-        print(f"  [ERROR] Connection timeout to {host}:{port}")
+        print(f"  [ERROR] Connection timeout to {host}:{port}", flush=True)
         return False, None, None, None
     except ssl.SSLError as e:
-        print(f"  [ERROR] SSL error: {e}")
+        print(f"  [ERROR] SSL error: {e}", flush=True)
         return False, None, None, None
     except ConnectionRefusedError:
-        print(f"  [ERROR] Connection refused to {host}:{port}")
+        print(f"  [ERROR] Connection refused to {host}:{port}", flush=True)
         return False, None, None, None
     except Exception as e:
-        print(f"  [ERROR] Connection failed: {e}")
+        print(f"  [ERROR] Connection failed: {e}", flush=True)
         import traceback
         traceback.print_exc()
         return False, None, None, None
@@ -187,18 +185,18 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
 
 def main():
     """Main entry point - Power on the machine with full quantum integration"""
-    print("=" * 80)
-    print("  QUANTUM TRADING MACHINE v2.0 - ULTRA-ADVANCED INTEGRATION")
-    print("  13,629 LINES OF INSTITUTIONAL-GRADE CODE")
-    print("  LIVE cTrader FIX Connection Mode - NO SIMULATED FALLBACK")
-    print("=" * 80)
+    print("=" * 80, flush=True)
+    print("  QUANTUM TRADING MACHINE v2.0 - ULTRA-ADVANCED INTEGRATION", flush=True)
+    print("  13,629 LINES OF INSTITUTIONAL-GRADE CODE", flush=True)
+    print("  LIVE cTrader FIX Connection Mode - NO SIMULATED FALLBACK", flush=True)
+    print("=" * 80, flush=True)
     print()
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     # Load configuration from .env (dotenv already loaded at top of file)
-    print("[CONFIG] Loading .env configuration...")
+    print("[CONFIG] Loading .env configuration...", flush=True)
 
     import os
     FIX_HOST = os.getenv('FIX_HOST', 'demo-uk-eqx-01.p.c-trader.com')
@@ -206,15 +204,15 @@ def main():
     TARGET_COMP_ID = os.getenv('TARGET_COMP_ID', 'cServer')
     FIX_PASSWORD = os.getenv('FIX_PASSWORD', '').strip().strip('"').strip("'")
 
-    print(f"  Host: {FIX_HOST}")
-    print(f"  SenderCompID: {SENDER_COMP_ID}")
-    print(f"  TargetCompID: {TARGET_COMP_ID}")
-    print(f"  Password: {'*' * len(FIX_PASSWORD) if FIX_PASSWORD else 'NOT SET'}")
+    print(f"  Host: {FIX_HOST}", flush=True)
+    print(f"  SenderCompID: {SENDER_COMP_ID}", flush=True)
+    print(f"  TargetCompID: {TARGET_COMP_ID}", flush=True)
+    print(f"  Password: {'*' * len(FIX_PASSWORD) if FIX_PASSWORD else 'NOT SET'}", flush=True)
     print()
 
     if not FIX_PASSWORD:
-        print("[ERROR] FIX_PASSWORD not set in .env file!")
-        print("[ERROR] Please add FIX_PASSWORD=your_password to your .env file")
+        print("[ERROR] FIX_PASSWORD not set in .env file!", flush=True)
+        print("[ERROR] Please add FIX_PASSWORD=your_password to your .env file", flush=True)
         sys.exit(1)
 
     # Try both ports: 5211 for QUOTE (prices), 5212 for TRADE
@@ -229,13 +227,13 @@ def main():
     active_port = None
     active_session_type = None
 
-    print("[CONNECT] Attempting FIX connections...")
-    print("=" * 80)
+    print("[CONNECT] Attempting FIX connections...", flush=True)
+    print("=" * 80, flush=True)
 
     for port, session_type in ports_to_try:
-        print(f"\n{'='*60}")
-        print(f"[TRY] Port {port} ({session_type} session)")
-        print("=" * 60)
+        print(f"\n{'='*60}", flush=True)
+        print(f"[TRY] Port {port} ({session_type} session, flush=True)")
+        print("=" * 60, flush=True)
         
         success, sock, enc, dec = try_connect_and_login(
             host=FIX_HOST,
@@ -252,64 +250,64 @@ def main():
             decoder = dec
             active_port = port
             active_session_type = session_type
-            print(f"\n[SUCCESS] Connected via port {port} ({session_type})!")
+            print(f"\n[SUCCESS] Connected via port {port} ({session_type}, flush=True)!")
             break
         else:
-            print(f"[FAIL] Port {port} ({session_type}) failed - continuing to next...")
+            print(f"[FAIL] Port {port} ({session_type}, flush=True) failed - continuing to next...")
 
     if not ssl_sock:
-        print("\n" + "=" * 80)
-        print("[CRITICAL] ALL FIX CONNECTION ATTEMPTS FAILED")
-        print("=" * 80)
-        print("\nPossible causes:")
-        print("1. Invalid credentials - check SenderCompID and FIX_PASSWORD")
-        print("2. Demo account may not have FIX API access enabled")
-        print("3. Network/firewall blocking connection to cTrader servers")
-        print("4. cTrader demo server may be temporarily unavailable")
-        print("\nPlease verify your cTrader demo account has FIX API access.")
-        print("Check https://help.ctrader.com/fix/ for documentation.")
+        print("\n" + "=" * 80, flush=True)
+        print("[CRITICAL] ALL FIX CONNECTION ATTEMPTS FAILED", flush=True)
+        print("=" * 80, flush=True)
+        print("\nPossible causes:", flush=True)
+        print("1. Invalid credentials - check SenderCompID and FIX_PASSWORD", flush=True)
+        print("2. Demo account may not have FIX API access enabled", flush=True)
+        print("3. Network/firewall blocking connection to cTrader servers", flush=True)
+        print("4. cTrader demo server may be temporarily unavailable", flush=True)
+        print("\nPlease verify your cTrader demo account has FIX API access.", flush=True)
+        print("Check https://help.ctrader.com/fix/ for documentation.", flush=True)
         sys.exit(1)
 
     # Initialize QUANTUM BRAIN - Full 13k+ line integration
-    print("\n" + "=" * 80)
-    print("[QUANTUM BRAIN] INITIALIZING FULL 13,629 LINE QUANTUM MATRIX")
-    print("=" * 80)
+    print("\n" + "=" * 80, flush=True)
+    print("[QUANTUM BRAIN] INITIALIZING FULL 13,629 LINE QUANTUM MATRIX", flush=True)
+    print("=" * 80, flush=True)
     
     # Stage 1: Mathematical Filters (100+ metrics)
-    print("[STAGE 1] Initializing 100+ mathematical filters...")
+    print("[STAGE 1] Initializing 100+ mathematical filters...", flush=True)
     quantum_engine = QuantumMathEngine(lookback=500)
-    print("  ✓ QuantumMathEngine: READY (100+ metrics)")
+    print("  ✓ QuantumMathEngine: READY (100+ metrics, flush=True)")
     
     # Stage 2: Intelligence Matrix (100+ ML + 10+ RL models)
-    print("[STAGE 2] Initializing 100+ ML + 10+ RL model matrix...")
+    print("[STAGE 2] Initializing 100+ ML + 10+ RL model matrix...", flush=True)
     intelligence = IntelligenceMatrix()
-    print(f"  ✓ IntelligenceMatrix: READY ({len(intelligence.ml_models)} ML + {len(intelligence.rl_models)} RL)")
+    print(f"  ✓ IntelligenceMatrix: READY ({len(intelligence.ml_models, flush=True)} ML + {len(intelligence.rl_models)} RL)")
     
     # Stage 3: World-Class Quantum Engine (quantum algorithms + execution)
-    print("[STAGE 3] Initializing World-Class Quantum Engine...")
+    print("[STAGE 3] Initializing World-Class Quantum Engine...", flush=True)
     quantum_engine_full = WorldClassQuantumEngine(n_qubits=8)
     quantum_engine_full.initialize()
-    print("  ✓ WorldClassQuantumEngine: READY")
+    print("  ✓ WorldClassQuantumEngine: READY", flush=True)
     
     # Stage 4: Mathematical Filter Integration (linking layers)
-    print("[STAGE 4] Initializing Mathematical Filter Integration layer...")
+    print("[STAGE 4] Initializing Mathematical Filter Integration layer...", flush=True)
     math_integration = MathematicalFilterIntegration()
     math_integration.connect_mathematical_filters(quantum_engine)
-    print("  ✓ MathematicalFilterIntegration: READY")
+    print("  ✓ MathematicalFilterIntegration: READY", flush=True)
     
     # Stage 5: Enhanced RL Manager (with mathematical integration)
-    print("[STAGE 5] Initializing Enhanced RL Manager...")
+    print("[STAGE 5] Initializing Enhanced RL Manager...", flush=True)
     rl_manager = EnhancedRLManager()
     rl_manager.connect_mathematical_filters(quantum_engine)
-    print("  ✓ EnhancedRLManager: READY")
+    print("  ✓ EnhancedRLManager: READY", flush=True)
     
-    print("\n" + "=" * 80)
-    print("[QUANTUM BRAIN] ALL SUBSYSTEMS INITIALIZED SUCCESSFULLY")
-    print("=" * 80)
+    print("\n" + "=" * 80, flush=True)
+    print("[QUANTUM BRAIN] ALL SUBSYSTEMS INITIALIZED SUCCESSFULLY", flush=True)
+    print("=" * 80, flush=True)
     print()
 
     # Subscribe to XAUUSD market data
-    print("[SUBSCRIBE] Requesting XAUUSD market data...")
+    print("[SUBSCRIBE] Requesting XAUUSD market data...", flush=True)
     md_request = decoder.create_market_data_request(
         symbol="XAUUSD",
         sender=SENDER_COMP_ID,
@@ -318,15 +316,15 @@ def main():
         request_id="XAUUSD_MD_1"
     )
     ssl_sock.sendall(encoder.to_wire(md_request))
-    print(f"  Market data request sent!")
+    print(f"  Market data request sent!", flush=True)
     time.sleep(1)
 
     # Main engine loop - REAL-TIME PROCESSING
     print()
-    print(f"[ENGINE] Starting REAL-TIME engine with LIVE XAUUSD data")
-    print(f"         Session: {active_session_type} | Port: {active_port}")
-    print(f"         Processing Pipeline: TICK → MATH_FILTERS → INTELLIGENCE_MATRIX → EXECUTION")
-    print("[ENGINE] Press Ctrl+C to stop")
+    print(f"[ENGINE] Starting REAL-TIME engine with LIVE XAUUSD data", flush=True)
+    print(f"         Session: {active_session_type} | Port: {active_port}", flush=True)
+    print(f"         Processing Pipeline: TICK → MATH_FILTERS → INTELLIGENCE_MATRIX → EXECUTION", flush=True)
+    print("[ENGINE] Press Ctrl+C to stop", flush=True)
     print()
 
     tick_count = 0
@@ -371,11 +369,11 @@ def main():
                         # Print tick info
                         if tick_count % 10 == 0:
                             spread = ask - bid if ask > 0 else 0
-                            print(f"  [TICK] #{tick_count:05d} | Bid={bid:.5f} | Ask={ask:.5f} | Spread={spread:.2f}")
+                            print(f"  [TICK] #{tick_count:05d} | Bid={bid:.5f} | Ask={ask:.5f} | Spread={spread:.2f}", flush=True)
                         
                         # Check if prices are stale
                         if time.time() - last_price_update > 10:
-                            print(f"  [WARNING] Price feed stale (last update {time.time() - last_price_update:.1f}s ago)")
+                            print(f"  [WARNING] Price feed stale (last update {time.time() - last_price_update:.1f}s ago)", flush=True)
                         
                         # STAGE 1: Quantum Mathematical Filters (100+ metrics)
                         math_filter_calls += 1
@@ -428,38 +426,38 @@ def main():
                                     sell_count += 1
                                     action = "SELL"
                                 
-                                print(f"  [ORDER] #{tick_count} {action} | Qty={quantity:.3f} | Price={order_price:.5f} | Signal={composite:+.3f} | Conf={confidence:.2f}")
+                                print(f"  [ORDER] #{tick_count} {action} | Qty={quantity:.3f} | Price={order_price:.5f} | Signal={composite:+.3f} | Conf={confidence:.2f}", flush=True)
                             except Exception as e:
-                                print(f"  [ORDER] Send failed: {e}")
+                                print(f"  [ORDER] Send failed: {e}", flush=True)
                         else:
                             hold_count += 1
                             
                     elif result["type"] == "execution_report":
                         report = result["report"]
-                        print(f"  [EXEC] Order {report.cl_ord_id} | Status={report.ord_status} | AvgPx={report.avg_px}")
+                        print(f"  [EXEC] Order {report.cl_ord_id} | Status={report.ord_status} | AvgPx={report.avg_px}", flush=True)
                     elif result["type"] == "test_request":
                         test_id = result.get("tags", {}).get("112", "")
                         if test_id:
                             heartbeat = encoder.create_heartbeat(test_id)
                             ssl_sock.sendall(encoder.to_wire(heartbeat))
                     elif result["type"] == "reject":
-                        print(f"  [REJECT] {result.get('text', 'Unknown')}")
+                        print(f"  [REJECT] {result.get('text', 'Unknown', flush=True)}")
                         
             except socket.timeout:
                 pass  # No data, continue
             except BlockingIOError:
                 pass  # No data, continue
             except Exception as e:
-                print(f"  [ERROR] Receive error: {e}")
+                print(f"  [ERROR] Receive error: {e}", flush=True)
                 connection_lost = True
                 
             # Check for stale prices
             if tick_count > 0 and live_bid > 0 and (time.time() - last_price_update) > 30:
-                print(f"  [ALERT] No price updates for 30 seconds!")
+                print(f"  [ALERT] No price updates for 30 seconds!", flush=True)
             
             # Check if connection was lost
             if connection_lost:
-                print("\n[ERROR] Connection lost! Attempting reconnect...")
+                print("\n[ERROR] Connection lost! Attempting reconnect...", flush=True)
                 
                 success, new_sock, enc, dec = try_connect_and_login(
                     host=FIX_HOST,
@@ -475,7 +473,7 @@ def main():
                     encoder = enc
                     decoder = dec
                     connection_lost = False
-                    print("[RECONNECT] Successfully reconnected!")
+                    print("[RECONNECT] Successfully reconnected!", flush=True)
                     
                     # Re-subscribe to market data
                     md_request = decoder.create_market_data_request(
@@ -487,7 +485,7 @@ def main():
                     )
                     ssl_sock.sendall(encoder.to_wire(md_request))
                 else:
-                    print("[CRITICAL] Reconnect failed!")
+                    print("[CRITICAL] Reconnect failed!", flush=True)
                     sys.exit(1)
             
             # Small delay to prevent CPU spinning
@@ -501,23 +499,23 @@ def main():
         tps = tick_count / max(elapsed, 0.001)
         
         print()
-        print("=" * 80)
-        print("  SHUTDOWN SUMMARY - QUANTUM TRADING MACHINE")
-        print("=" * 80)
-        print(f"  Session Type: {active_session_type}")
-        print(f"  Port: {active_port}")
-        print(f"  Total ticks processed: {tick_count}")
-        print(f"  Runtime: {elapsed:.1f} seconds")
-        print(f"  Throughput: {tps:.0f} ticks/sec")
-        print(f"  Orders sent: {total_trades_executed}")
-        print(f"  Buy orders: {buy_count}")
-        print(f"  Sell orders: {sell_count}")
-        print(f"  Hold signals: {hold_count}")
-        print(f"  Final Bid={live_bid:.5f} | Ask={live_ask:.5f}")
-        print(f"  Math Filter Calls: {math_filter_calls}")
-        print(f"  Intelligence Matrix Calls: {intelligence_calls}")
-        print(f"  Quantum Engine Status: ACTIVE")
-        print("=" * 80)
+        print("=" * 80, flush=True)
+        print("  SHUTDOWN SUMMARY - QUANTUM TRADING MACHINE", flush=True)
+        print("=" * 80, flush=True)
+        print(f"  Session Type: {active_session_type}", flush=True)
+        print(f"  Port: {active_port}", flush=True)
+        print(f"  Total ticks processed: {tick_count}", flush=True)
+        print(f"  Runtime: {elapsed:.1f} seconds", flush=True)
+        print(f"  Throughput: {tps:.0f} ticks/sec", flush=True)
+        print(f"  Orders sent: {total_trades_executed}", flush=True)
+        print(f"  Buy orders: {buy_count}", flush=True)
+        print(f"  Sell orders: {sell_count}", flush=True)
+        print(f"  Hold signals: {hold_count}", flush=True)
+        print(f"  Final Bid={live_bid:.5f} | Ask={live_ask:.5f}", flush=True)
+        print(f"  Math Filter Calls: {math_filter_calls}", flush=True)
+        print(f"  Intelligence Matrix Calls: {intelligence_calls}", flush=True)
+        print(f"  Quantum Engine Status: ACTIVE", flush=True)
+        print("=" * 80, flush=True)
         
         # Send logout
         try:
@@ -527,9 +525,11 @@ def main():
         except:
             pass
         
-        print("[SHUTDOWN] Power off complete")
-        print("[SHUTDOWN] Quantum matrix shut down safely")
+        print("[SHUTDOWN] Power off complete", flush=True)
+        print("[SHUTDOWN] Quantum matrix shut down safely", flush=True)
 
 
 if __name__ == "__main__":
+    load_dotenv()
+    validate_config()
     main()

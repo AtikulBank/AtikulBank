@@ -261,7 +261,6 @@ def main():
     # Stage 3: World-Class Quantum Engine (quantum algorithms + execution)
     print("[STAGE 3] Initializing World-Class Quantum Engine...", flush=True)
     quantum_engine_full = WorldClassQuantumEngine(n_qubits=8)
-    quantum_engine_full.initialize()
     print("  ✓ WorldClassQuantumEngine: READY", flush=True)
     
     # Stage 4: Mathematical Filter Integration (linking layers)

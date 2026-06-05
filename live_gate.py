@@ -97,7 +97,7 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
         print(f"  [LOGON] Raw message: {logon_msg}", flush=True)
         
         # Send logon
-        logon_bytes = encoder.to_wire(logon_msg)
+        logon_bytes = logon_msg.replace("|", "\x01").encode('latin-1')
         # Ensure SOH delimiter at end
         if not logon_bytes.endswith(b"\x01"):
             logon_bytes += b"\x01"
@@ -190,7 +190,7 @@ def main():
     print("  13,629 LINES OF INSTITUTIONAL-GRADE CODE", flush=True)
     print("  LIVE cTrader FIX Connection Mode - NO SIMULATED FALLBACK", flush=True)
     print("=" * 80, flush=True)
-    print()
+    print(flush=True)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -208,7 +208,7 @@ def main():
     print(f"  SenderCompID: {SENDER_COMP_ID}", flush=True)
     print(f"  TargetCompID: {TARGET_COMP_ID}", flush=True)
     print(f"  Password: {'*' * len(FIX_PASSWORD) if FIX_PASSWORD else 'NOT SET'}", flush=True)
-    print()
+    print(flush=True)
 
     if not FIX_PASSWORD:
         print("[ERROR] FIX_PASSWORD not set in .env file!", flush=True)
@@ -304,7 +304,7 @@ def main():
     print("\n" + "=" * 80, flush=True)
     print("[QUANTUM BRAIN] ALL SUBSYSTEMS INITIALIZED SUCCESSFULLY", flush=True)
     print("=" * 80, flush=True)
-    print()
+    print(flush=True)
 
     # Subscribe to XAUUSD market data
     print("[SUBSCRIBE] Requesting XAUUSD market data...", flush=True)
@@ -320,12 +320,12 @@ def main():
     time.sleep(1)
 
     # Main engine loop - REAL-TIME PROCESSING
-    print()
+    print(flush=True)
     print(f"[ENGINE] Starting REAL-TIME engine with LIVE XAUUSD data", flush=True)
     print(f"         Session: {active_session_type} | Port: {active_port}", flush=True)
     print(f"         Processing Pipeline: TICK → MATH_FILTERS → INTELLIGENCE_MATRIX → EXECUTION", flush=True)
     print("[ENGINE] Press Ctrl+C to stop", flush=True)
-    print()
+    print(flush=True)
 
     tick_count = 0
     buy_count = 0
@@ -498,7 +498,7 @@ def main():
         elapsed = time.time() - start_time
         tps = tick_count / max(elapsed, 0.001)
         
-        print()
+        print(flush=True)
         print("=" * 80, flush=True)
         print("  SHUTDOWN SUMMARY - QUANTUM TRADING MACHINE", flush=True)
         print("=" * 80, flush=True)

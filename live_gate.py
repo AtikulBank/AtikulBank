@@ -286,6 +286,20 @@ def main():
     md_request = encoder.create_market_data_request("14", "XAUUSD_MD_1")
     ssl_sock.sendall(encoder.to_wire(md_request))
     print(f"  Market data request sent!", flush=True)
+    
+    # Connect to TRADE session for order placement
+    print("[TRADE] Connecting to TRADE session on port 5212...", flush=True)
+    trade_encoder = FixEncoder(SENDER_COMP_ID, TARGET_COMP_ID, "TRADE", "TRADE")
+    trade_decoder = FixDecoder()
+    trade_success, trade_sock, trade_enc, trade_dec = attempt_connection(
+        trade_encoder, trade_decoder, host, 5211  # Using same port for now
+    )
+    if trade_success:
+        print(f"  [TRADE] TRADE session connected!", flush=True)
+    else:
+        print(f"  [TRADE] TRADE session failed - orders will use QUOTE session", flush=True)
+        trade_sock = ssl_sock  # Fallback to QUOTE session
+    
     time.sleep(1)
 
     # Main engine loop - REAL-TIME PROCESSING
@@ -377,12 +391,12 @@ def main():
                             
                             side = "1" if composite > 0 else "2"
                             # Position sizing based on signal strength and confidence
-                            quantity = 0.01 + abs(composite) * 0.1 * confidence
+                            quantity = 1000  # Minimum volume for cTrader demo
                             order_price = bid if side == "1" else ask
                             cl_ord_id = f"ORD-{int(time.time() * 1000)}-{tick_count:06d}"
                             
                             # Generate FIX message
-                            fix_msg = encoder.create_new_order(
+                            fix_msg = trade_enc.create_new_order(
                                 cl_ord_id=cl_ord_id,
                                 symbol="14",
                                 side=side,
@@ -390,9 +404,9 @@ def main():
                                 price=order_price
                             )
                             
-                            # Send via socket
+                            # Send via TRADE socket
                             try:
-                                ssl_sock.sendall(encoder.to_wire(fix_msg))
+                                trade_sock.sendall(trade_enc.to_wire(fix_msg))
                                 total_trades_executed += 1
                                 
                                 if side == "1":
@@ -414,7 +428,14 @@ def main():
                         order_id = result.get("order_id", "")
                         status = result.get("status", "")
                         price = result.get("price", 0.0)
-                        print(f"  [EXEC] Order {order_id} | Status={status} | Price={price:.5f}", flush=True)
+                        side_val = result.get("side", "")
+                        side_name = "BUY" if side_val == "1" else "SELL" if side_val == "2" else side_val
+                        print(f"  [EXEC] Order {order_id} | {side_name} | Status={status} | Price={price:.5f}", flush=True)
+                    elif result.get("type") == "unknown" and "35=j" in str(result.get("tags", {})):
+                        # Business Message Reject
+                        tags = result.get("tags", {})
+                        error = tags.get("58", "Unknown error")
+                        print(f"  [REJECT] {error}", flush=True)
                     elif result["type"] == "test_request":
                         test_id = result.get("tags", {}).get("112", "")
                         if test_id:
@@ -422,6 +443,23 @@ def main():
                             ssl_sock.sendall(encoder.to_wire(heartbeat))
                     elif result["type"] == "reject":
                         print(f"  [REJECT] {result.get('text', 'Unknown')}", flush=True)
+            
+            # Also check TRADE session for execution reports
+            try:
+                trade_sock.settimeout(0.01)
+                trade_data = trade_sock.recv(65536)
+                if trade_data:
+                    trade_decoded = trade_data.decode('latin-1')
+                    trade_result = trade_dec.decode_message(trade_decoded)
+                    if trade_result.get("type") == "execution_report":
+                        order_id = trade_result.get("order_id", "")
+                        status = trade_result.get("status", "")
+                        side_val = trade_result.get("side", "")
+                        side_name = "BUY" if side_val == "1" else "SELL" if side_val == "2" else side_val
+                        price = trade_result.get("price", 0.0)
+                        print(f"  [TRADE] Order {order_id} | {side_name} | Status={status} | Price={price:.5f}", flush=True)
+            except:
+                pass
                         
             except socket.timeout:
                 pass  # No data, continue

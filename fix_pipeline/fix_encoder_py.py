@@ -30,6 +30,8 @@ class FixEncoder:
         body_fields: pipe-delimited tags from 35= through the last tag,
                      ending with a trailing ``|``.
         """
+        # BodyLength = number of bytes from tag 35 to the delimiter before tag 10
+        # body_fields already has trailing "|", so converting to wire gives correct length
         body_wire = body_fields.replace("|", "\x01")
         body_length = len(body_wire)
         msg = f"8=FIX.4.4|9={body_length}|{body_fields}"
@@ -103,7 +105,7 @@ class FixEncoder:
 
     def create_order_single(self, symbol_id: str, client_order_id: str,
                              side: int, order_qty: float, price: float,
-                             order_type: int = 2) -> str:
+                             order_type: int = 1) -> str:
         """Create New Order Single (MsgType=D)"""
         self._sequence_number += 1
         body = f"35=D|"
@@ -119,7 +121,9 @@ class FixEncoder:
         body += f"60={self._timestamp()}|"
         body += f"40={order_type}|"
         body += f"38={order_qty:.2f}|"
-        body += f"44={price:.5f}|"
+        # Only add Price for Limit orders (order_type=2) or Stop orders (order_type=3)
+        if order_type in (2, 3):
+            body += f"44={price:.5f}|"
         body += f"59=0|"
         return self._build_message(body)
 
@@ -164,7 +168,7 @@ class FixEncoder:
             side=side_int,
             order_qty=quantity,
             price=price,
-            order_type=2
+            order_type=1  # 1=Market, 2=Limit, 3=Stop
         )
 
     @property

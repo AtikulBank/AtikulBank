@@ -256,7 +256,7 @@ def main():
     # Stage 2: Intelligence Matrix (100+ ML + 10+ RL models)
     print("[STAGE 2] Initializing 100+ ML + 10+ RL model matrix...", flush=True)
     intelligence = IntelligenceMatrix()
-    print(f"  ✓ IntelligenceMatrix: READY ({len(intelligence.ml_models, flush=True)} ML + {len(intelligence.rl_models)} RL)")
+    print(f"  ✓ IntelligenceMatrix: READY ({len(intelligence.ml_models)} ML + {len(intelligence.rl_models)} RL)", flush=True)
     
     # Stage 3: World-Class Quantum Engine (quantum algorithms + execution)
     print("[STAGE 3] Initializing World-Class Quantum Engine...", flush=True)

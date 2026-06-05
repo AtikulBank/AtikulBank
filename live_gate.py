@@ -134,8 +134,8 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
             return False, None, None, None
         
         if raw_data:
-            print(f"  [RECV] Received {len(raw_data, flush=True)} bytes from server")
-            print(f"  [RECV] Raw bytes (hex, flush=True): {raw_data[:200].hex()}")
+            print(f"  [RECV] Received {len(raw_data)} bytes from server", flush=True)
+            print(f"  [RECV] Raw bytes (hex): {raw_data[:200].hex()}", flush=True)
             
             # Decode and show raw response
             try:
@@ -146,17 +146,17 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
                 
                 # Try to parse with decoder
                 result = decoder.decode_message(decoded)
-                print(f"  [RECV] Parsed type: {result.get('type', 'unknown', flush=True)}")
+                print(f"  [RECV] Parsed type: {result.get('type', 'unknown')}", flush=True)
                 
                 if result.get("type") == "logon":
                     print(f"  [LOGON] SUCCESS - Server confirmed logon!", flush=True)
                     return True, ssl_sock, encoder, decoder
                 elif result.get("type") == "reject":
-                    print(f"  [REJECT] Logon rejected: {result.get('text', 'Unknown', flush=True)}")
+                    print(f"  [REJECT] Logon rejected: {result.get('text', 'Unknown')}", flush=True)
                 elif result.get("type") == "logout":
-                    print(f"  [LOGOUT] Server logged out: {result.get('text', '', flush=True)}")
+                    print(f"  [LOGOUT] Server logged out: {result.get('text', '')}", flush=True)
                 else:
-                    print(f"  [UNKNOWN] Unknown response type: {result.get('type', 'unknown', flush=True)}")
+                    print(f"  [UNKNOWN] Unknown response type: {result.get('type', 'unknown')}", flush=True)
             except Exception as e:
                 print(f"  [ERROR] Failed to decode response: {e}", flush=True)
                 print(f"  [ERROR] Raw response: {raw_data}", flush=True)

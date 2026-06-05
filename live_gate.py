@@ -407,10 +407,14 @@ def main():
                                 print(f"  [ORDER] Send failed: {e}", flush=True)
                         else:
                             hold_count += 1
+                            if tick_count % 5 == 0:
+                                print(f"  [HOLD] #{tick_count} | Signal={composite:+.3f} | Conf={confidence:.2f} | Agreement={model_agreement:.2f}", flush=True)
                             
-                    elif result["type"] == "execution_report":
-                        report = result["report"]
-                        print(f"  [EXEC] Order {report.cl_ord_id} | Status={report.ord_status} | AvgPx={report.avg_px}", flush=True)
+                    elif result.get("type") == "execution_report":
+                        order_id = result.get("order_id", "")
+                        status = result.get("status", "")
+                        price = result.get("price", 0.0)
+                        print(f"  [EXEC] Order {order_id} | Status={status} | Price={price:.5f}", flush=True)
                     elif result["type"] == "test_request":
                         test_id = result.get("tags", {}).get("112", "")
                         if test_id:

@@ -486,9 +486,10 @@ def main():
                             confidence = (confidence + god_bot_confidence) / 2.0
                         
                         # UPGRADE 2: Adaptive thresholds based on win rate
+                        # LOWERED THRESHOLDS FOR MORE ENTRIES!
                         win_rate = (sum(1 for x in trade_outcomes if x > 0) / len(trade_outcomes)) if trade_outcomes else 0.5
-                        dynamic_signal_threshold = 0.15 if win_rate >= 0.4 else 0.25
-                        dynamic_confidence_threshold = 0.30 if win_rate >= 0.4 else 0.50
+                        dynamic_signal_threshold = 0.05 if win_rate >= 0.4 else 0.10  # Was 0.15/0.25
+                        dynamic_confidence_threshold = 0.15 if win_rate >= 0.4 else 0.25  # Was 0.30/0.50
                         
                         # BUG FIX 3: Position limit check
                         if len(open_positions) >= max_open_positions:
@@ -498,7 +499,7 @@ def main():
                         # Generate order with advanced risk management
                         elif (abs(composite) > dynamic_signal_threshold and 
                             confidence > dynamic_confidence_threshold and 
-                            model_agreement > 0.4):  # Additional model agreement check
+                            model_agreement > 0.2):  # LOWERED from 0.4 to 0.2
                             
                             side = "1" if composite > 0 else "2"
                             # Position sizing based on signal strength and confidence

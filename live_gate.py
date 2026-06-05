@@ -11,8 +11,10 @@ import signal
 import time
 import socket
 import ssl
+import os
 from dotenv import load_dotenv
 load_dotenv()
+validate_config()
 
 # Quantum Brain imports - Full integration with upgraded modules
 from quantum_brain import (
@@ -25,6 +27,29 @@ from quantum_brain import (
 
 # FIX Pipeline imports
 from fix_pipeline import TcpSocket, FixEncoder, FixDecoder, SocketError, FixMsgType
+
+
+def validate_config():
+    """Validate FIX configuration from .env file"""
+    password = os.getenv('FIX_PASSWORD', '')
+    if not password or password in ['your_fix_api_password_here', '']:
+        print("ERROR: FIX_PASSWORD not set in .env file!")
+        print("Go to cTrader → Settings → FIX API → Change Password")
+        print("Then set FIX_PASSWORD=yourpassword in .env")
+        sys.exit(1)
+    
+    # Check for non-ASCII characters (Bengali etc)
+    try:
+        password.encode('ascii')
+    except UnicodeEncodeError:
+        print("ERROR: FIX_PASSWORD contains non-ASCII characters!")
+        print("Use only English letters, numbers, and basic symbols")
+        sys.exit(1)
+    
+    # Warn about # character
+    if '#' in password:
+        print("WARNING: Password contains # which breaks .env parsing!")
+        print("Wrap it in quotes: FIX_PASSWORD=\"your#pass\"")
 
 
 def signal_handler(signum, frame):
@@ -74,7 +99,7 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
         print(f"  [LOGON] Raw message: {logon_msg}")
         
         # Send logon
-        logon_bytes = logon_msg.replace("|", "\x01").encode('ascii')
+        logon_bytes = encoder.to_wire(logon_msg)
         ssl_sock.sendall(logon_bytes)
         print(f"  [LOGON] Sent {len(logon_bytes)} bytes")
         
@@ -289,7 +314,7 @@ def main():
         sub_id=active_session_type,
         request_id="XAUUSD_MD_1"
     )
-    ssl_sock.sendall(md_request.replace("|", "\x01").encode('ascii'))
+    ssl_sock.sendall(encoder.to_wire(md_request))
     print(f"  Market data request sent!")
     time.sleep(1)
 
@@ -390,7 +415,7 @@ def main():
                             
                             # Send via socket
                             try:
-                                ssl_sock.sendall(fix_msg.replace("|", "\x01").encode('ascii'))
+                                ssl_sock.sendall(encoder.to_wire(fix_msg))
                                 total_trades_executed += 1
                                 
                                 if side == "1":
@@ -413,7 +438,7 @@ def main():
                         test_id = result.get("tags", {}).get("112", "")
                         if test_id:
                             heartbeat = encoder.create_heartbeat(test_id)
-                            ssl_sock.sendall(heartbeat.replace("|", "\x01").encode('ascii'))
+                            ssl_sock.sendall(encoder.to_wire(heartbeat))
                     elif result["type"] == "reject":
                         print(f"  [REJECT] {result.get('text', 'Unknown')}")
                         
@@ -457,7 +482,7 @@ def main():
                         sub_id=active_session_type,
                         request_id="XAUUSD_MD_2"
                     )
-                    ssl_sock.sendall(md_request.replace("|", "\x01").encode('ascii'))
+                    ssl_sock.sendall(encoder.to_wire(md_request))
                 else:
                     print("[CRITICAL] Reconnect failed!")
                     sys.exit(1)
@@ -494,7 +519,7 @@ def main():
         # Send logout
         try:
             logout_msg = encoder.create_logout("Engine shutdown")
-            ssl_sock.sendall(logout_msg.replace("|", "\x01").encode('ascii'))
+            ssl_sock.sendall(encoder.to_wire(logout_msg))
             ssl_sock.close()
         except:
             pass

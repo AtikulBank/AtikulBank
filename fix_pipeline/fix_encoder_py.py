@@ -3,6 +3,7 @@ Pure Python FIX 4.4 Message Encoder
 Fallback when Cython extensions fail
 """
 
+import re
 import time
 from datetime import datetime, timezone
 
@@ -19,6 +20,17 @@ class FixEncoder:
         self._target_sub_id = target_sub_id
         self._sequence_number = 0
         self._heartbeat_interval = heartbeat_interval
+    
+    def to_wire(self, msg: str) -> bytes:
+        """Convert pipe-delimited FIX message to SOH wire format"""
+        # Remove existing checksum
+        msg_no_checksum = re.sub(r'\|10=\d{3}\|$', '|', msg)
+        # Convert to SOH
+        wire = msg_no_checksum.replace("|", "\x01")
+        # Recalculate checksum on actual wire bytes
+        checksum = sum(wire.encode('latin-1')) % 256
+        wire += f"10={checksum:03d}\x01"
+        return wire.encode('latin-1')
     
     def _timestamp(self) -> str:
         """Generate FIX timestamp: YYYYMMDD-HH:MM:SS.sss"""

@@ -308,12 +308,13 @@ def main():
     total_trades_executed = 0
     math_filter_calls = 0
     intelligence_calls = 0
+    last_tick_time = 0  # Rate limiter: min 1 second between ticks
 
     try:
         while True:
             # Receive any pending market data with short timeout
             try:
-                ssl_sock.settimeout(0.01)  # 10ms timeout for non-blocking reads
+                ssl_sock.settimeout(0.1)  # 100ms timeout
                 data = ssl_sock.recv(65536)
                 
                 if data:
@@ -323,18 +324,26 @@ def main():
                     if result.get("type") == "market_data":
                         bid = result.get("bid", 0.0)
                         ask = result.get("ask", 0.0)
+                        
+                        # Rate limiter: skip if less than 1 second since last tick
+                        current_time = time.time()
+                        if current_time - last_tick_time < 1.0:
+                            continue  # Skip, too fast
+                        
+                        last_tick_time = current_time
+                        
                         if bid > 0:
                             live_bid = bid
-                            last_price_update = time.time()
+                            last_price_update = current_time
                         if ask > 0:
                             live_ask = ask
-                            last_price_update = time.time()
+                            last_price_update = current_time
                         
                         tick_count += 1
-                        timestamp = time.time()
+                        timestamp = current_time
                         volume = 0.1
                         
-                        # Print tick info every tick
+                        # Print tick info INSTANTLY
                         spread = ask - bid if ask > 0 else 0
                         print(f"  [TICK] #{tick_count:05d} | Bid={bid:.5f} | Ask={ask:.5f} | Spread={spread:.5f}", flush=True)
                         

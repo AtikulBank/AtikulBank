@@ -1636,15 +1636,18 @@ class QuantumMathEngine:
             self._copula_engine.update(bid, ask, volume, ret)
             self._evt_engine.update(ret)
         
-        # Update running stats
+        # Execute all filter stages with error handling
+        # IMPORTANT: Compute velocity BEFORE updating running stats!
+        self._safe_compute(self._compute_velocity_metrics, metrics, timestamp, mid, bid, ask)
+        
+        # Update running stats (AFTER velocity computation)
         self._last_mid = mid
         self._last_bid = bid
         self._last_ask = ask
         self._last_timestamp = timestamp
         
-        # Execute all filter stages with error handling
+        # Execute other filter stages
         self._safe_compute(self._compute_volatility_metrics, metrics, mid, bid, ask)
-        self._safe_compute(self._compute_velocity_metrics, metrics, timestamp, mid, bid, ask)
         self._safe_compute(self._compute_momentum_metrics, metrics, mid)
         self._safe_compute(self._compute_non_commutative_metrics, metrics, mid, bid, ask)
         self._safe_compute(self._compute_order_book_metrics, metrics, bid, ask, volume)
@@ -1935,17 +1938,23 @@ class QuantumMathEngine:
         self, m: QuantumMetrics, timestamp: float, mid: float, bid: float, ask: float
     ) -> None:
         """Compute all velocity metrics"""
+        # Initialize if first tick
         if self._last_timestamp <= 0 or self._last_mid <= 0:
+            self._last_timestamp = timestamp
+            self._last_mid = mid
+            self._last_bid = bid
+            self._last_ask = ask
             return
         
         dt = timestamp - self._last_timestamp
         if dt <= 0:
-            return
+            dt = 0.001  # Minimum dt to avoid division by zero
         
         try:
             # 1. Price Velocity
             velocity = (mid - self._last_mid) / dt
             m.price_velocity = float(velocity)
+            logger.debug(f"Velocity computed: {velocity}, dt={dt}, mid={mid}, last_mid={self._last_mid}")
             
             # 2. Bid Velocity
             m.bid_velocity = float((bid - self._last_bid) / dt)
@@ -1982,10 +1991,12 @@ class QuantumMathEngine:
             )
             
             # 9. Bid-Ask Spread Velocity
+            spread_now = ask - bid
             if self._last_bid > 0 and self._last_ask > 0:
-                spread_now = ask - bid
                 spread_prev = self._last_ask - self._last_bid
                 m.bid_ask_spread_velocity = float((spread_now - spread_prev) / dt)
+            else:
+                m.bid_ask_spread_velocity = float(spread_now * 0.01)  # Default small value
             
             # 10. Micro Price Velocity
             depth_imbalance = (
@@ -2277,6 +2288,8 @@ class QuantumMathEngine:
                     1.0 if m.mid_price > self._last_mid else
                     (-1.0 if m.mid_price < self._last_mid else 0.0)
                 )
+            else:
+                m.tick_direction = 0.0  # Default to neutral
             
             # 13. Lee-Ready Classification (simplified)
             m.lee_ready_class = float(
@@ -2443,24 +2456,35 @@ class QuantumMathEngine:
     def _compute_kalman_metrics(self, m: QuantumMetrics, mid: float) -> None:
         """Compute Kalman filter metrics"""
         try:
+            # Update Kalman filter with current measurement
+            self._kalman_engine.compute_features(mid, 1.0)
             kalman_features = self._kalman_engine.get_state()
             
-            m.kalman_estimate = kalman_features.get('estimate', 0.0)
+            m.kalman_estimate = kalman_features.get('estimate', mid)
             m.kalman_innovation = kalman_features.get('innovation', 0.0)
-            m.kalman_gain_kalman = kalman_features.get('gain', 0.0)
+            m.kalman_gain_kalman = kalman_features.get('gain', 0.5)
             m.kalman_residual = abs(m.kalman_innovation)
             m.kalman_filtered_velocity = kalman_features.get('velocity', 0.0)
-            m.kalman_state_uncertainty = kalman_features.get('uncertainty', 0.0)
+            m.kalman_state_uncertainty = kalman_features.get('uncertainty', 1.0)
             
             if len(self._kalman_engine._innovation_history) >= 10:
                 innovations = np.array(list(self._kalman_engine._innovation_history))
                 m.kalman_innovation_variance = float(np.var(innovations))
             else:
-                m.kalman_innovation_variance = 0.0
+                m.kalman_innovation_variance = 0.001
             
             m.kalman_prediction_error = abs(m.kalman_innovation)
             
         except Exception as e:
+            # Provide default values if Kalman fails
+            m.kalman_estimate = mid
+            m.kalman_innovation = 0.0
+            m.kalman_gain_kalman = 0.5
+            m.kalman_residual = 0.0
+            m.kalman_filtered_velocity = 0.0
+            m.kalman_state_uncertainty = 1.0
+            m.kalman_innovation_variance = 0.001
+            m.kalman_prediction_error = 0.0
             logger.error(f"Error computing Kalman metrics: {e}")
     
     # ========================================================================
@@ -2578,7 +2602,7 @@ class QuantumMathEngine:
         try:
             # 1. Trend Signal
             m.trend_signal = float(
-                np.clip(m.price_velocity * FilterConfig.VELOCITY_SCALE, -1, 1) * 0.4 +
+                np.clip(m.nc_momentum * FilterConfig.VELOCITY_SCALE, -1, 1) * 0.4 +
                 np.clip(m.hull_momentum * FilterConfig.MOMENTUM_SCALE, -1, 1) * 0.3 +
                 np.clip(m.velocity_trend * FilterConfig.MOMENTUM_SCALE, -1, 1) * 0.3
             )
@@ -2586,10 +2610,11 @@ class QuantumMathEngine:
             # 2. Mean Reversion Signal
             m.mean_reversion_signal = float(np.clip(-m.z_score * 0.5, -1, 1))
             
-            # 3. Breakout Signal
+            # 3. Breakout Signal - Use z-score for breakout detection
             m.breakout_signal = float(
-                np.clip(m.momentum_breakout * FilterConfig.BREAKOUT_THRESHOLD, -1, 1)
+                np.clip(m.z_score * FilterConfig.BREAKOUT_THRESHOLD, -1, 1)
             )
+            m.momentum_breakout = m.breakout_signal  # Copy to momentum_breakout
             
             # 4. Volatility Signal
             if m.vol_regime > 0:
@@ -2614,6 +2639,8 @@ class QuantumMathEngine:
                     m.regime_signal = float(0.3)   # Low vol regime
                 else:
                     m.regime_signal = float(0.0)
+            else:
+                m.regime_signal = float(0.0)  # Default neutral
             
             # 9. Risk-Adjusted Signal
             if m.realized_volatility > 0:

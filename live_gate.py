@@ -621,22 +621,23 @@ def main():
                 print(f"  [ERROR] Receive error: {e}", flush=True)
                 connection_lost = True
             
-            # Also check TRADE session for execution reports
-            try:
-                trade_sock.settimeout(0.01)
-                trade_data = trade_sock.recv(65536)
-                if trade_data:
-                    trade_decoded = trade_data.decode('latin-1')
-                    trade_result = trade_dec.decode_message(trade_decoded)
-                    if trade_result.get("type") == "execution_report":
-                        order_id = trade_result.get("order_id", "")
-                        status = trade_result.get("status", "")
-                        side_val = trade_result.get("side", "")
-                        side_name = "BUY" if side_val == "1" else "SELL" if side_val == "2" else side_val
-                        price = trade_result.get("price", 0.0)
-                        print(f"  [TRADE] Order {order_id} | {side_name} | Status={status} | Price={price:.5f}", flush=True)
-            except:
-                pass
+            # Also check TRADE session for execution reports (only if connected)
+            if trade_sock is not None:
+                try:
+                    trade_sock.settimeout(0.01)
+                    trade_data = trade_sock.recv(65536)
+                    if trade_data:
+                        trade_decoded = trade_data.decode('latin-1')
+                        trade_result = trade_dec.decode_message(trade_decoded)
+                        if trade_result.get("type") == "execution_report":
+                            order_id = trade_result.get("order_id", "")
+                            status = trade_result.get("status", "")
+                            side_val = trade_result.get("side", "")
+                            side_name = "BUY" if side_val == "1" else "SELL" if side_val == "2" else side_val
+                            price = trade_result.get("price", 0.0)
+                            print(f"  [TRADE] Order {order_id} | {side_name} | Status={status} | Price={price:.5f}", flush=True)
+                except:
+                    pass
                 
             # Check for stale prices
             if tick_count > 0 and live_bid > 0 and (time.time() - last_price_update) > 30:
@@ -667,8 +668,9 @@ def main():
                     md_request = encoder.create_market_data_request(XAUUSD_SYMBOL_ID, "XAUUSD_MD_2")
                     ssl_sock.sendall(encoder.to_wire(md_request))
                 else:
-                    print("[CRITICAL] Reconnect failed!", flush=True)
-                    sys.exit(1)
+                    print("[WARNING] Reconnect failed - retrying in 5s...", flush=True)
+                    time.sleep(5)  # Wait before retry
+                    # DON'T exit - keep trying!
             
             # BUG FIX 1: Proactive heartbeat check
             if time.time() - last_heartbeat_sent >= HEARTBEAT_INTERVAL:

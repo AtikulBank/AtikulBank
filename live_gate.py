@@ -14,7 +14,6 @@ import ssl
 import os
 from dotenv import load_dotenv
 load_dotenv()
-validate_config()
 
 # Quantum Brain imports - Full integration with upgraded modules
 from quantum_brain import (
@@ -50,6 +49,10 @@ def validate_config():
     if '#' in password:
         print("WARNING: Password contains # which breaks .env parsing!")
         print("Wrap it in quotes: FIX_PASSWORD=\"your#pass\"")
+
+
+# Validate configuration after function definition
+validate_config()
 
 
 def signal_handler(signum, frame):

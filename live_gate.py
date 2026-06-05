@@ -326,19 +326,18 @@ def main():
                     decoded = data.decode('ascii', errors='replace')
                     result = decoder.decode_message(decoded)
                     
-                    if result["type"] in ("market_data_snapshot", "market_data_incremental"):
-                        tick = result["tick"]
-                        if tick.bid_price > 0:
-                            live_bid = tick.bid_price
+                    if result.get("type") == "market_data":
+                        bid = result.get("bid", 0.0)
+                        ask = result.get("ask", 0.0)
+                        if bid > 0:
+                            live_bid = bid
                             last_price_update = time.time()
-                        if tick.ask_price > 0:
-                            live_ask = tick.ask_price
+                        if ask > 0:
+                            live_ask = ask
                             last_price_update = time.time()
                         
                         tick_count += 1
                         timestamp = time.time()
-                        bid = tick.bid_price
-                        ask = tick.ask_price
                         volume = 0.1
                         
                         # Print tick info
@@ -416,7 +415,7 @@ def main():
                             heartbeat = encoder.create_heartbeat(test_id)
                             ssl_sock.sendall(encoder.to_wire(heartbeat))
                     elif result["type"] == "reject":
-                        print(f"  [REJECT] {result.get('text', 'Unknown', flush=True)}")
+                        print(f"  [REJECT] {result.get('text', 'Unknown')}", flush=True)
                         
             except socket.timeout:
                 pass  # No data, continue

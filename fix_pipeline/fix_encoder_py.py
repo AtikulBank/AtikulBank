@@ -30,18 +30,18 @@ class FixEncoder:
         body_fields: pipe-delimited tags from 35= through the last tag,
                      ending with a trailing ``|``.
         """
-        body_length = len(body_fields.replace("|", "\x01"))
+        body_wire = body_fields.replace("|", "\x01")
+        body_length = len(body_wire)
         msg = f"8=FIX.4.4|9={body_length}|{body_fields}"
-        checksum = sum(msg.replace("|", "\x01").encode("latin-1")) % 256
-        return f"{msg}10={checksum:03d}|"
+        wire = msg.replace("|", "\x01")
+        checksum = sum(wire.encode('latin-1')) % 256
+        msg += f"10={checksum:03d}|"
+        return msg
 
     def to_wire(self, msg: str) -> bytes:
-        """Convert pipe-delimited FIX message to SOH wire format.
-
-        The checksum is already embedded by _build_message so this is a
-        straight pipe-to-SOH replacement with no recalculation.
-        """
-        return msg.replace("|", "\x01").encode("latin-1")
+        """Convert pipe-delimited FIX message to SOH wire format."""
+        wire = msg.replace("|", "\x01")
+        return wire.encode('latin-1')
 
     def create_logon(self, password: str, reset: bool = True) -> str:
         """Create FIX Logon message (MsgType=A) for cTrader"""

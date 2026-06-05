@@ -103,67 +103,42 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
             logon_bytes += b"\x01"
         ssl_sock.sendall(logon_bytes)
         print(f"  [LOGON] Sent {len(logon_bytes)} bytes", flush=True)
-        
-        # Wait for response with detailed logging
+
+        # Wait for response with select()
+        import select
         print(f"  [LOGON] Waiting for server response (timeout=30s)...", flush=True)
-        ssl_sock.settimeout(30.0)
-        
-        # Try to receive data
+        ssl_sock.settimeout(None)
+        readable, _, _ = select.select([ssl_sock], [], [], 30)
+        if not readable:
+            print(f"  [ERROR] Timeout - no response from server")
+            ssl_sock.close()
+            return False, None, None, None
+
         raw_data = b''
-        try:
-            # Read in chunks until we have data or timeout
-            chunk = ssl_sock.recv(65536)
-            if chunk:
-                raw_data = chunk
-                # Keep reading if there's more data
-                while True:
-                    try:
-                        more = ssl_sock.recv(65536, socket.MSG_DONTWAIT)
-                        if not more:
-                            break
-                        raw_data += more
-                    except BlockingIOError:
-                        break
-        except socket.timeout:
-            print(f"  [ERROR] Socket timeout - no response from server", flush=True)
-            ssl_sock.close()
-            return False, None, None, None
-        except Exception as e:
-            print(f"  [ERROR] Failed to receive: {e}", flush=True)
-            ssl_sock.close()
-            return False, None, None, None
-        
-        if raw_data:
-            print(f"  [RECV] Received {len(raw_data)} bytes from server", flush=True)
-            print(f"  [RECV] Raw bytes (hex): {raw_data[:200].hex()}", flush=True)
-            
-            # Decode and show raw response
+        ssl_sock.settimeout(2.0)
+        while True:
             try:
-                decoded = raw_data.decode('ascii', errors='replace')
-                # Replace SOH with | for readability
-                readable = decoded.replace('\x01', '|')
-                print(f"  [RECV] Decoded message:\n{readable[:500]}", flush=True)
-                
-                # Try to parse with decoder
-                result = decoder.decode_message(decoded)
-                print(f"  [RECV] Parsed type: {result.get('type', 'unknown')}", flush=True)
-                
-                if result.get("type") == "logon":
-                    print(f"  [LOGON] SUCCESS - Server confirmed logon!", flush=True)
-                    return True, ssl_sock, encoder, decoder
-                elif result.get("type") == "reject":
-                    print(f"  [REJECT] Logon rejected: {result.get('text', 'Unknown')}", flush=True)
-                elif result.get("type") == "logout":
-                    print(f"  [LOGOUT] Server logged out: {result.get('text', '')}", flush=True)
-                else:
-                    print(f"  [UNKNOWN] Unknown response type: {result.get('type', 'unknown')}", flush=True)
-            except Exception as e:
-                print(f"  [ERROR] Failed to decode response: {e}", flush=True)
-                print(f"  [ERROR] Raw response: {raw_data}", flush=True)
+                chunk = ssl_sock.recv(65536)
+                if not chunk:
+                    break
+                raw_data += chunk
+            except socket.timeout:
+                break
+
+        if raw_data:
+            decoded = raw_data.decode('latin-1')
+            readable_msg = decoded.replace('\x01', '|')
+            print(f"  [RECV] Server response: {readable_msg[:300]}")
+            if '35=A' in decoded:
+                print(f"  [LOGON] SUCCESS - Connected!")
+                return True, ssl_sock, encoder, decoder
+            elif '35=5' in decoded:
+                print(f"  [LOGOUT] Server rejected: {readable_msg}")
+            else:
+                print(f"  [UNKNOWN] Response: {readable_msg[:200]}")
         else:
-            print(f"  [ERROR] No data received from server", flush=True)
-            print(f"  [ERROR] Connection may have been closed or server is ignoring us", flush=True)
-        
+            print(f"  [ERROR] No data received from server")
+
         ssl_sock.close()
         return False, None, None, None
         

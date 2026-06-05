@@ -283,13 +283,7 @@ def main():
 
     # Subscribe to XAUUSD market data
     print("[SUBSCRIBE] Requesting XAUUSD market data...", flush=True)
-    md_request = decoder.create_market_data_request(
-        symbol="14",
-        sender=SENDER_COMP_ID,
-        target=TARGET_COMP_ID,
-        sub_id=active_session_type,
-        request_id="XAUUSD_MD_1"
-    )
+    md_request = encoder.create_market_data_request("14", "XAUUSD_MD_1")
     ssl_sock.sendall(encoder.to_wire(md_request))
     print(f"  Market data request sent!", flush=True)
     time.sleep(1)
@@ -323,7 +317,7 @@ def main():
                 data = ssl_sock.recv(65536)
                 
                 if data:
-                    decoded = data.decode('ascii', errors='replace')
+                    decoded = data.decode('latin-1')
                     result = decoder.decode_message(decoded)
                     
                     if result.get("type") == "market_data":
@@ -340,10 +334,9 @@ def main():
                         timestamp = time.time()
                         volume = 0.1
                         
-                        # Print tick info
-                        if tick_count % 10 == 0:
-                            spread = ask - bid if ask > 0 else 0
-                            print(f"  [TICK] #{tick_count:05d} | Bid={bid:.5f} | Ask={ask:.5f} | Spread={spread:.2f}", flush=True)
+                        # Print tick info every tick
+                        spread = ask - bid if ask > 0 else 0
+                        print(f"  [TICK] #{tick_count:05d} | Bid={bid:.5f} | Ask={ask:.5f} | Spread={spread:.5f}", flush=True)
                         
                         # Check if prices are stale
                         if time.time() - last_price_update > 10:
@@ -450,13 +443,7 @@ def main():
                     print("[RECONNECT] Successfully reconnected!", flush=True)
                     
                     # Re-subscribe to market data
-                    md_request = decoder.create_market_data_request(
-                        symbol="14",
-                        sender=SENDER_COMP_ID,
-                        target=TARGET_COMP_ID,
-                        sub_id=active_session_type,
-                        request_id="XAUUSD_MD_2"
-                    )
+                    md_request = encoder.create_market_data_request("14", "XAUUSD_MD_2")
                     ssl_sock.sendall(encoder.to_wire(md_request))
                 else:
                     print("[CRITICAL] Reconnect failed!", flush=True)

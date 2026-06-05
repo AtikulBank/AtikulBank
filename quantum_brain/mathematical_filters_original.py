@@ -2047,70 +2047,82 @@ class QuantumMathEngine:
             return
         
         try:
-            # PURE PRICE ACTION - NO INDICATORS!
-            # Just raw price movement analysis
+            # 1-3. RSI variants
+            for period, name in [(7, 'rsi_7'), (14, 'rsi_14'), (21, 'rsi_21')]:
+                if n >= period:
+                    gains = [max(r, 0) for r in returns[-period:]]
+                    losses = [abs(min(r, 0)) for r in returns[-period:]]
+                    avg_gain = np.mean(gains)
+                    avg_loss = np.mean(losses)
+                    rs = avg_gain / max(avg_loss, FilterConfig.EPSILON)
+                    setattr(m, name, float(100 - 100 / (1 + rs)))
             
-            # 1. Price Change (raw)
-            if n >= 2:
-                m.rsi_14 = float(np.clip((returns[-1] - np.mean(returns[-20:])) / max(np.std(returns[-20:]), 0.0001), -1, 1) * 100 + 50) if n >= 20 else 50.0
-                m.rsi_7 = float(np.clip((returns[-1] - np.mean(returns[-7:])) / max(np.std(returns[-7:]), 0.0001), -1, 1) * 100 + 50) if n >= 7 else 50.0
-                m.rsi_21 = float(np.clip((returns[-1] - np.mean(returns[-21:])) / max(np.std(returns[-21:]), 0.0001), -1, 1) * 100 + 50) if n >= 21 else 50.0
+            # 4. MACD Signal
+            if n >= 26:
+                fast = np.mean(returns[-12:])
+                slow = np.mean(returns[-26:])
+                m.macd_signal = float(
+                    np.sign(fast - slow) * min(abs(fast - slow) * 100, 1.0)
+                )
             
-            # 2. Raw price momentum (no smoothing)
-            if n >= 2:
-                m.macd_signal = float(np.sign(returns[-1]) * min(abs(returns[-1]) * 100, 1.0))
-            
-            # 3. Price position in range
+            # 5-6. Stochastic
             if n >= 14:
-                recent = returns[-14:]
-                low = min(recent)
-                high = max(recent)
+                period_returns = returns[-14:]
+                low = min(period_returns)
+                high = max(period_returns)
                 rng = high - low
                 if rng > 0:
                     m.stochastic_k = float((returns[-1] - low) / rng * 100)
-                    m.stochastic_d = float(m.stochastic_k)
+                    m.stochastic_d = float(np.mean([m.stochastic_k]))
             
-            # 4. Z-Score of price
+            # 7. CCI
             if n >= 20:
-                arr = np.array(returns[-20:])
-                mean_r = np.mean(arr)
-                std_r = np.std(arr)
-                if std_r > 0:
-                    m.z_score = float((returns[-1] - mean_r) / std_r)
-                    m.cci = float(m.z_score * 100)  # Simplified CCI
+                tp = np.mean(returns[-20:])
+                mad = np.mean(np.abs(np.array(returns[-20:]) - tp))
+                if mad > 0:
+                    m.cci = float((returns[-1] - tp) / (0.015 * mad))
             
-            # 5. Williams %R - Price position
+            # 8. Williams %R
             if n >= 14:
-                recent = returns[-14:]
-                high = max(recent)
-                low = min(recent)
+                period_returns = returns[-14:]
+                high = max(period_returns)
+                low = min(period_returns)
                 rng = high - low
                 if rng > 0:
                     m.williams_r = float((high - returns[-1]) / rng * -100)
             
-            # 6. Rate of Change (raw)
+            # 9. Rate of Change
             if n >= 10:
                 m.rate_of_change = float(
                     (returns[-1] - returns[-10]) /
                     max(abs(returns[-10]), FilterConfig.EPSILON) * 100
                 )
             
-            # 7. Momentum Composite - Pure price action
+            # 10. Momentum Composite
             m.momentum_composite = float(
-                (m.rsi_14 - 50) / 50 * 0.4 +
+                (m.rsi_14 - 50) / 50 * 0.3 +
                 m.macd_signal * 0.3 +
-                (m.stochastic_k - 50) / 50 * 0.3
+                (m.stochastic_k - 50) / 50 * 0.2 +
+                m.rate_of_change / 100 * 0.2
             )
             
-            # 8. Percentile Rank
+            # 11. Z-Score
+            if n >= 20:
+                arr = np.array(returns[-20:])
+                mean_r = np.mean(arr)
+                std_r = np.std(arr)
+                if std_r > 0:
+                    m.z_score = float((returns[-1] - mean_r) / std_r)
+            
+            # 12. Percentile Rank
             if n >= 20:
                 arr = np.array(returns[-20:])
                 m.percentile_rank = float(np.sum(arr < returns[-1]) / len(arr) * 100)
             
-            # 9. Mean Reversion signal
-            m.momentum_mean_reversion = float(-m.z_score * 0.3) if n >= 20 else 0.0
+            # 13. Momentum Mean Reversion
+            m.momentum_mean_reversion = float(-m.z_score * 0.3)
             
-            # 10. Breakout detection
+            # 14. Momentum Breakout
             if n >= 20:
                 recent = returns[-20:]
                 m.momentum_breakout = float(
@@ -2118,9 +2130,13 @@ class QuantumMathEngine:
                     (-1.0 if returns[-1] < min(recent) else 0.0)
                 )
             
-            # 11. Raw price average
+            # 15. Hull Moving Average Momentum
             if n >= 20:
-                m.hull_momentum = float(np.mean(returns[-5:]) - np.mean(returns[-20:]))
+                hma_10 = np.mean(returns[-10:])
+                hma_20 = np.mean(returns[-20:])
+                hma_sqrt = np.mean(returns[-int(math.sqrt(20)):])
+                hull = 2 * hma_10 - hma_20
+                m.hull_momentum = float(hull - hma_sqrt)
             
         except Exception as e:
             logger.error(f"Error computing momentum metrics: {e}")

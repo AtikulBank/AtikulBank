@@ -122,7 +122,7 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
                 if not chunk:
                     break
                 raw_data += chunk
-            except socket.timeout:
+            except (socket.timeout, ssl.SSLWantReadError):
                 break
 
         if raw_data:

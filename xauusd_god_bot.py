@@ -723,15 +723,34 @@ class BaseModel(ABC):
             self.accuracy = sum(p[1] for p in self.prediction_history) / len(self.prediction_history)
 
 def _torch_predict_helper(model, X: np.ndarray, input_size: int) -> ModelPrediction:
-    """Predict using PyTorch model, or fall back to heuristic if not available/trained."""
+    """Predict using PyTorch model, or fall back to price-based heuristic if not available/trained."""
     if not TORCH_AVAILABLE or model is None:
-        # Heuristic fallback: use price trend from input
+        # Price-based heuristic: actually analyze the input features
         if X is not None and len(X) > 0:
             flat = X.flatten()[:input_size]
-            if len(flat) > 1:
-                trend = float(np.mean(np.diff(flat[-10:])))
-                direction = float(np.clip(trend * 100, -1, 1))
-                confidence = min(abs(direction) + 0.3, 1.0)
+            if len(flat) >= 10:
+                # Multi-factor analysis
+                short_trend = float(np.mean(np.diff(flat[-5:])))
+                long_trend = float(np.mean(np.diff(flat[-20:]))) if len(flat) >= 20 else short_trend
+                momentum = float(np.mean(flat[-5:]) - np.mean(flat[-10:])) if len(flat) >= 10 else 0
+                volatility = float(np.std(np.diff(flat[-10:])))
+                
+                # Combine signals
+                direction = float(np.clip((short_trend * 3 + long_trend * 2 + momentum) / 6, -1, 1))
+                
+                # Confidence based on signal strength and volatility
+                signal_strength = abs(short_trend) + abs(momentum)
+                confidence = min(0.5 + signal_strength * 10, 0.95)
+                
+                # Reduce confidence in high volatility
+                if volatility > 0.001:
+                    confidence *= 0.8
+                
+                return (direction, confidence)
+            elif len(flat) > 1:
+                trend = float(np.mean(np.diff(flat)))
+                direction = float(np.clip(trend * 50, -1, 1))
+                confidence = min(abs(direction) * 0.5 + 0.4, 0.8)
                 return (direction, confidence)
         return (0.0, 0.3)
     try:
@@ -747,12 +766,15 @@ def _torch_predict_helper(model, X: np.ndarray, input_size: int) -> ModelPredict
                 confidence = min(confidence + 0.2, 0.6)
             return (float(np.clip(direction, -1, 1)), float(np.clip(confidence, 0, 1)))
     except Exception:
-        # Fallback on error
+        # Fallback on error - use price analysis
         if X is not None and len(X) > 0:
             flat = X.flatten()[:input_size]
-            if len(flat) > 1:
-                trend = float(np.mean(np.diff(flat[-10:])))
-                return (float(np.clip(trend * 100, -1, 1)), 0.4)
+            if len(flat) >= 5:
+                trend = float(np.mean(np.diff(flat[-5:])))
+                return (float(np.clip(trend * 50, -1, 1)), 0.5)
+            elif len(flat) > 1:
+                trend = float(np.mean(np.diff(flat)))
+                return (float(np.clip(trend * 50, -1, 1)), 0.4)
         return (0.0, 0.3)
 
 def _train_torch_model(model, X: np.ndarray, y: np.ndarray, epochs: int = 10, batch_size: int = 32, lr: float = 0.001) -> bool:
@@ -1811,20 +1833,58 @@ class RiskManager:
         return round(max(self.config.min_lot_size, min(basic, self.config.max_lot_size)), 2)
 
     def calculate_sl(self, price: float, atr: float, direction: SignalDirection,
-                     support: float = 0.0, resistance: float = 0.0) -> float:
-        sl_dist = max(atr * 2.0, price * 0.002)
+                     support: float = 0.0, resistance: float = 0.0,
+                     volatility_regime: str = "NORMAL") -> float:
+        """Calculate Stop Loss with dynamic adjustment based on volatility regime."""
+        # Base SL distance using ATR
+        if volatility_regime == "HIGH":
+            sl_dist = atr * 2.5  # Wider SL in high volatility
+        elif volatility_regime == "LOW":
+            sl_dist = atr * 1.5  # Tighter SL in low volatility
+        else:
+            sl_dist = atr * 2.0  # Normal
+        
+        # Ensure minimum SL distance (0.15% of price)
+        min_dist = price * 0.0015
+        sl_dist = max(sl_dist, min_dist)
+        
         if direction == SignalDirection.BUY:
             sl = price - sl_dist
-            if support > 0: sl = min(sl, support - atr*0.5)
+            # Use support level if provided and closer
+            if support > 0 and support < price:
+                support_sl = support - atr * 0.3  # Slightly below support
+                if support_sl > sl:  # Only if support gives tighter SL
+                    sl = support_sl
         else:
             sl = price + sl_dist
-            if resistance > 0: sl = max(sl, resistance + atr*0.5)
+            # Use resistance level if provided and closer
+            if resistance > 0 and resistance > price:
+                resistance_sl = resistance + atr * 0.3  # Slightly above resistance
+                if resistance_sl < sl:  # Only if resistance gives tighter SL
+                    sl = resistance_sl
+        
         return round(sl, 2)
 
-    def calculate_tp(self, entry: float, sl: float, direction: SignalDirection) -> Tuple[float, float, float]:
+    def calculate_tp(self, entry: float, sl: float, direction: SignalDirection,
+                     signal_strength: float = 0.5) -> Tuple[float, float, float]:
+        """Calculate Take Profit levels with dynamic R:R based on signal strength."""
         risk = abs(entry - sl)
         m = 1.0 if direction == SignalDirection.BUY else -1.0
-        return (round(entry + m*risk*1.5, 2), round(entry + m*risk*2.5, 2), round(entry + m*risk*3.5, 2))
+        
+        # Dynamic R:R based on signal strength
+        # Strong signals get higher R:R targets
+        if signal_strength > 0.8:
+            rr1, rr2, rr3 = 2.0, 3.0, 4.5  # Aggressive targets
+        elif signal_strength > 0.6:
+            rr1, rr2, rr3 = 1.5, 2.5, 3.5  # Normal targets
+        else:
+            rr1, rr2, rr3 = 1.2, 2.0, 3.0  # Conservative targets
+        
+        tp1 = round(entry + m * risk * rr1, 2)
+        tp2 = round(entry + m * risk * rr2, 2)
+        tp3 = round(entry + m * risk * rr3, 2)
+        
+        return (tp1, tp2, tp3)
 
     def check_limits(self, lot_size: float, sl_distance: float) -> Tuple[bool, str]:
         """Comprehensive Hex Funded Bot limit checks."""

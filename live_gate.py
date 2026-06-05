@@ -444,6 +444,14 @@ def main():
                     elif result["type"] == "reject":
                         print(f"  [REJECT] {result.get('text', 'Unknown')}", flush=True)
             
+            except socket.timeout:
+                pass  # No data, continue
+            except BlockingIOError:
+                pass  # No data, continue
+            except Exception as e:
+                print(f"  [ERROR] Receive error: {e}", flush=True)
+                connection_lost = True
+            
             # Also check TRADE session for execution reports
             try:
                 trade_sock.settimeout(0.01)
@@ -460,14 +468,6 @@ def main():
                         print(f"  [TRADE] Order {order_id} | {side_name} | Status={status} | Price={price:.5f}", flush=True)
             except:
                 pass
-                        
-            except socket.timeout:
-                pass  # No data, continue
-            except BlockingIOError:
-                pass  # No data, continue
-            except Exception as e:
-                print(f"  [ERROR] Receive error: {e}", flush=True)
-                connection_lost = True
                 
             # Check for stale prices
             if tick_count > 0 and live_bid > 0 and (time.time() - last_price_update) > 30:

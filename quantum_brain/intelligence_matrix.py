@@ -1948,6 +1948,10 @@ class IntelligenceMatrix:
         self._predictions_history.append(result)
         return result
     
+    def process_quantum_metrics(self, metrics) -> EnsemblePrediction:
+        """Alias for predict() - process quantum metrics and return ensemble prediction"""
+        return self.predict(metrics)
+    
     def _build_feature_vector(self, metrics) -> List[float]:
         """Build feature vector from quantum metrics"""
         features = [

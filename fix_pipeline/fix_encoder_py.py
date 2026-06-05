@@ -69,9 +69,10 @@ class FixEncoder:
         body = f"35=0|"
         body += f"49={self._sender_comp_id}|"
         body += f"56={self._target_comp_id}|"
+        body += f"34={self._sequence_number}|"
+        body += f"52={self._timestamp()}|"
         if self._sender_sub_id:
             body += f"50={self._sender_sub_id}|"
-        body += f"52={self._timestamp()}|"
         if test_request_id:
             body += f"112={test_request_id}|"
         return self._build_message(body)
@@ -79,14 +80,18 @@ class FixEncoder:
     def create_market_data_request(self, symbol_id: str, md_request_id: str,
                                      subscription_type: int = 1,
                                      market_depth: int = 1) -> str:
-        """Create Market Data Request (MsgType=V)"""
+        """Create Market Data Request (MsgType=V)
+        
+        symbol_id: cTrader numeric FIX symbol ID (e.g., "14" for XAUUSD on IC Markets)
+        """
         self._sequence_number += 1
         body = f"35=V|"
         body += f"49={self._sender_comp_id}|"
         body += f"56={self._target_comp_id}|"
+        body += f"34={self._sequence_number}|"
+        body += f"52={self._timestamp()}|"
         if self._sender_sub_id:
             body += f"50={self._sender_sub_id}|"
-        body += f"52={self._timestamp()}|"
         body += f"262={md_request_id}|"
         body += f"263={subscription_type}|"
         body += f"264={market_depth}|"
@@ -104,9 +109,10 @@ class FixEncoder:
         body = f"35=D|"
         body += f"49={self._sender_comp_id}|"
         body += f"56={self._target_comp_id}|"
+        body += f"34={self._sequence_number}|"
+        body += f"52={self._timestamp()}|"
         if self._sender_sub_id:
             body += f"50={self._sender_sub_id}|"
-        body += f"52={self._timestamp()}|"
         body += f"11={client_order_id}|"
         body += f"55={symbol_id}|"
         body += f"54={side}|"
@@ -124,9 +130,10 @@ class FixEncoder:
         body = f"35=F|"
         body += f"49={self._sender_comp_id}|"
         body += f"56={self._target_comp_id}|"
+        body += f"34={self._sequence_number}|"
+        body += f"52={self._timestamp()}|"
         if self._sender_sub_id:
             body += f"50={self._sender_sub_id}|"
-        body += f"52={self._timestamp()}|"
         body += f"11={client_order_id}|"
         body += f"41={orig_client_order_id}|"
         body += f"55={symbol_id}|"
@@ -139,9 +146,10 @@ class FixEncoder:
         body = f"35=5|"
         body += f"49={self._sender_comp_id}|"
         body += f"56={self._target_comp_id}|"
+        body += f"34={self._sequence_number}|"
+        body += f"52={self._timestamp()}|"
         if self._sender_sub_id:
             body += f"50={self._sender_sub_id}|"
-        body += f"52={self._timestamp()}|"
         if reason:
             body += f"58={reason}|"
         return self._build_message(body)

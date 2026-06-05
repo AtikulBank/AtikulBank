@@ -284,7 +284,7 @@ def main():
     # Subscribe to XAUUSD market data
     print("[SUBSCRIBE] Requesting XAUUSD market data...", flush=True)
     md_request = decoder.create_market_data_request(
-        symbol="XAUUSD",
+        symbol="14",
         sender=SENDER_COMP_ID,
         target=TARGET_COMP_ID,
         sub_id=active_session_type,
@@ -383,7 +383,7 @@ def main():
                             # Generate FIX message
                             fix_msg = encoder.create_new_order(
                                 cl_ord_id=cl_ord_id,
-                                symbol="XAUUSD",
+                                symbol="14",
                                 side=side,
                                 quantity=quantity,
                                 price=order_price
@@ -452,7 +452,7 @@ def main():
                     
                     # Re-subscribe to market data
                     md_request = decoder.create_market_data_request(
-                        symbol="XAUUSD",
+                        symbol="14",
                         sender=SENDER_COMP_ID,
                         target=TARGET_COMP_ID,
                         sub_id=active_session_type,

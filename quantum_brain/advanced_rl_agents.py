@@ -2118,6 +2118,27 @@ class MathematicalFilterIntegration:
         
         return np.array(features)
     
+    def update_history(self, metrics) -> None:
+        """Update internal history with new metrics"""
+        if hasattr(metrics, 'velocity_wavelet'):
+            self.wavelet_history.append(metrics.velocity_wavelet)
+        if hasattr(metrics, 'velocity_entropy'):
+            self.entropy_history.append(metrics.velocity_entropy)
+        if hasattr(metrics, 'lyapunov_exponent'):
+            self.lyapunov_history.append(metrics.lyapunov_exponent)
+        if hasattr(metrics, 'hurst_exponent'):
+            self.hurst_history.append(metrics.hurst_exponent)
+        if hasattr(metrics, 'fractal_dimension'):
+            self.fractal_history.append(metrics.fractal_dimension)
+        
+        # Keep histories bounded
+        max_history = 1000
+        self.wavelet_history = self.wavelet_history[-max_history:]
+        self.entropy_history = self.entropy_history[-max_history:]
+        self.lyapunov_history = self.lyapunov_history[-max_history:]
+        self.hurst_history = self.hurst_history[-max_history:]
+        self.fractal_history = self.fractal_history[-max_history:]
+    
     def get_reward_shaping(self, metrics, action: int, reward: float) -> float:
         """Shape reward based on mathematical filter signals"""
         shaped_reward = reward

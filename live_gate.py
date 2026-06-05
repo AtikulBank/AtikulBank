@@ -288,13 +288,11 @@ def main():
     
     # Connect to TRADE session for order placement
     print("[TRADE] Connecting to TRADE session on port 5212...", flush=True)
-    trade_encoder = FixEncoder(SENDER_COMP_ID, TARGET_COMP_ID, "TRADE", "TRADE")
-    trade_decoder = FixDecoder()
-    trade_success, trade_sock, trade_enc, trade_dec = attempt_connection(
-        trade_encoder, trade_decoder, host, 5211  # Using same port for now
+    trade_success, trade_sock, trade_enc, trade_dec = try_connect_and_login(
+        FIX_HOST, 5212, SENDER_COMP_ID, TARGET_COMP_ID, "TRADE", FIX_PASSWORD
     )
     if trade_success:
-        print(f"  [TRADE] TRADE session connected!", flush=True)
+        print(f"  [TRADE] TRADE session connected on port 5212!", flush=True)
     else:
         print(f"  [TRADE] TRADE session failed - orders will use QUOTE session", flush=True)
         trade_sock = ssl_sock  # Fallback to QUOTE session

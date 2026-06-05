@@ -549,6 +549,21 @@ def main():
                                     except Exception as e:
                                         print(f"  [SL] SL send failed: {e}", flush=True)
                                     
+                                    # Send Take Profit order (order_type=2 = Limit)
+                                    tp_cl_ord_id = f"TP-{cl_ord_id}"
+                                    tp_msg = trade_enc.create_new_order(
+                                        cl_ord_id=tp_cl_ord_id,
+                                        symbol=XAUUSD_SYMBOL_ID,
+                                        side=2 if side == "1" else 1,  # Opposite side
+                                        quantity=quantity,
+                                        price=tp_price
+                                    )
+                                    try:
+                                        trade_sock.sendall(trade_enc.to_wire(tp_msg))
+                                        print(f"  [TP] TP order sent at {tp_price:.2f}", flush=True)
+                                    except Exception as e:
+                                        print(f"  [TP] TP send failed: {e}", flush=True)
+                                    
                                     # BUG FIX 3: Track position
                                     open_positions[cl_ord_id] = {
                                         'side': side, 'qty': quantity, 'price': order_price, 

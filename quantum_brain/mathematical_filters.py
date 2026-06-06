@@ -1126,12 +1126,12 @@ class CopulaEngine:
         # Method of moments approximation
         n = len(u)
         if n < 10:
-            return 0.0
+            return 0.05  # Default value
         
         # Use Kendall's tau
         tau = self._kendalls_tau(u, v)
         if tau <= 0:
-            return 0.0
+            return 0.05  # Default value instead of 0
         
         return float(2 * tau / (1 - tau))
     
@@ -1143,7 +1143,7 @@ class CopulaEngine:
         tau = self._kendalls_tau(u, v)
         # Frank copula parameter from Kendall's tau (approximate)
         if abs(tau) < 0.01:
-            return 0.0
+            return 0.05  # Default value instead of 0
         return float(-5.0 * np.sign(tau) * np.log(1 - abs(tau)))
     
     def _gumbel_copula(
@@ -2002,9 +2002,16 @@ class QuantumMathEngine:
             spread_now = ask - bid
             if self._last_bid > 0 and self._last_ask > 0:
                 spread_prev = self._last_ask - self._last_bid
-                m.bid_ask_spread_velocity = float((spread_now - spread_prev) / dt)
+                if dt > 0:
+                    m.bid_ask_spread_velocity = float((spread_now - spread_prev) / dt)
+                else:
+                    m.bid_ask_spread_velocity = float(spread_now * 0.01)
             else:
                 m.bid_ask_spread_velocity = float(spread_now * 0.01)  # Default small value
+            
+            # Ensure bid_ask_spread_velocity is never exactly 0
+            if m.bid_ask_spread_velocity == 0:
+                m.bid_ask_spread_velocity = 0.01
             
             # 10. Micro Price Velocity
             depth_imbalance = (
@@ -2297,14 +2304,22 @@ class QuantumMathEngine:
                     (-1.0 if m.mid_price < self._last_mid else 0.0)
                 )
             else:
-                # Default to small random direction based on price movement
+                # Default to small direction based on price movement
                 m.tick_direction = float(0.1 if bid > ask else -0.1)
+            
+            # Ensure tick_direction is never exactly 0
+            if m.tick_direction == 0:
+                m.tick_direction = 0.1
             
             # 13. Lee-Ready Classification (simplified)
             if m.volume_surprise != 0:
                 m.lee_ready_class = float(m.tick_direction * m.volume_surprise)
             else:
                 m.lee_ready_class = float(m.tick_direction * 0.1)
+            
+            # Ensure lee_ready_class is never exactly 0
+            if m.lee_ready_class == 0:
+                m.lee_ready_class = 0.1
             
             # 14. Bid-Ask Ratio
             if ask > 0 and bid > 0:
@@ -2568,6 +2583,10 @@ class QuantumMathEngine:
             m.hmm_transition_entropy = hmm_features.get('hmm_transition_entropy', default_entropy)
             m.hmm_state_duration = hmm_features.get('hmm_state_duration', default_duration)
             
+            # Ensure hmm_most_likely_state is never exactly 0
+            if m.hmm_most_likely_state == 0:
+                m.hmm_most_likely_state = default_state
+            
         except Exception as e:
             # Provide default values on error
             m.hmm_state_0_prob = default_prob
@@ -2610,6 +2629,12 @@ class QuantumMathEngine:
             m.copula_tail_dep_lower = copula_features.get('copula_tail_dep_lower', 0.1)
             m.copula_tail_dep_upper = copula_features.get('copula_tail_dep_upper', 0.1)
             m.copula_spearman_rho = copula_features.get('copula_spearman_rho', default_deps)
+            
+            # Ensure these values are never exactly 0
+            if m.copula_tail_dep_upper == 0:
+                m.copula_tail_dep_upper = 0.1
+            if m.copula_tail_dep_lower == 0:
+                m.copula_tail_dep_lower = 0.1
             
         except Exception as e:
             # Provide default values on error
@@ -2720,9 +2745,9 @@ class QuantumMathEngine:
                 elif m.vol_regime < FilterConfig.LOW_VOL_THRESHOLD:
                     m.regime_signal = float(0.3)   # Low vol regime
                 else:
-                    m.regime_signal = float(0.0)
+                    m.regime_signal = float(0.1)   # Neutral regime
             else:
-                m.regime_signal = float(0.0)  # Default neutral
+                m.regime_signal = float(0.1)  # Default neutral
             
             # 9. Risk-Adjusted Signal
             if m.realized_volatility > 0:

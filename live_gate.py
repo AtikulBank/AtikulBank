@@ -48,6 +48,18 @@ def validate_config():
     if '#' in password:
         print("WARNING: Password contains # which breaks .env parsing!", flush=True)
         print("Wrap it in quotes: FIX_PASSWORD=\"your#pass\"", flush=True)
+    
+    # Check trading mode
+    trading_mode = os.getenv('TRADING_MODE', 'demo').lower()
+    print(f"  Trading Mode: {trading_mode.upper()}", flush=True)
+    print(f"  NOTE: For LIVE trading, set TRADING_MODE=live in .env", flush=True)
+    
+    # Validate live trading configuration
+    if trading_mode == 'live':
+        print("  WARNING: LIVE TRADING MODE ENABLED!", flush=True)
+        print("  Real money will be used!", flush=True)
+        print("  Press Ctrl+C within 10 seconds to abort...", flush=True)
+        time.sleep(10)
 
 
 def signal_handler(signum, frame):
@@ -161,9 +173,9 @@ def try_connect_and_login(host, port, sender_comp_id, target_comp_id, sender_sub
 def main():
     """Main entry point - Power on the machine with full quantum integration"""
     print("=" * 80, flush=True)
-    print("  QUANTUM TRADING MACHINE v2.0 - ULTRA-ADVANCED INTEGRATION", flush=True)
+    print("  QUANTUM TRADING MACHINE v3.0 - ULTRA-ADVANCED INTEGRATION", flush=True)
     print("  13,629 LINES OF INSTITUTIONAL-GRADE CODE", flush=True)
-    print("  LIVE cTrader FIX Connection Mode - NO SIMULATED FALLBACK", flush=True)
+    print("  LIVE cTrader FIX Connection Mode - DEMO & LIVE SUPPORTED", flush=True)
     print("=" * 80, flush=True)
     print(flush=True)
 
@@ -178,11 +190,26 @@ def main():
     SENDER_COMP_ID = os.getenv('SENDER_COMP_ID', 'demo.ctrader.5832984')
     TARGET_COMP_ID = os.getenv('TARGET_COMP_ID', 'cServer')
     FIX_PASSWORD = os.getenv('FIX_PASSWORD', '').strip().strip('"').strip("'")
+    
+    # Trading mode configuration
+    TRADING_MODE = os.getenv('TRADING_MODE', 'demo').lower()
+    
+    # Live trading configuration
+    if TRADING_MODE == 'live':
+        print("  [LIVE MODE] Connecting to LIVE cTrader server...", flush=True)
+        # Use live server configuration
+        FIX_HOST = os.getenv('LIVE_FIX_HOST', 'live-uk-eqx-01.p.c-trader.com')
+        SENDER_COMP_ID = os.getenv('LIVE_SENDER_COMP_ID', 'live.ctrader.5832984')
+        print(f"  [LIVE] Host: {FIX_HOST}", flush=True)
+        print(f"  [LIVE] SenderCompID: {SENDER_COMP_ID}", flush=True)
+    else:
+        print("  [DEMO MODE] Connecting to DEMO cTrader server...", flush=True)
 
     print(f"  Host: {FIX_HOST}", flush=True)
     print(f"  SenderCompID: {SENDER_COMP_ID}", flush=True)
     print(f"  TargetCompID: {TARGET_COMP_ID}", flush=True)
     print(f"  Password: {'*' * len(FIX_PASSWORD) if FIX_PASSWORD else 'NOT SET'}", flush=True)
+    print(f"  Trading Mode: {TRADING_MODE.upper()}", flush=True)
     print(flush=True)
 
     if not FIX_PASSWORD:

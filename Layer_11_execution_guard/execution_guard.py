@@ -27,14 +27,14 @@ from pipeline import ExecutionCheck
 @dataclass
 class ExecutionGuardConfig:
     """Configuration for execution guard."""
-    max_spread_bps: float = 50.0
+    atr_spread_multiplier: float = 0.10  # Spread < ATR × 0.10
     heartbeat_timeout_s: float = 30.0
     max_concurrent_positions: int = 3
     max_daily_loss_pct: float = 0.03
     max_weekly_loss_pct: float = 0.07
     max_drawdown_pct: float = 0.10
-    nfp_block_minutes: int = 30
-    fomc_block_minutes: int = 60
+    nfp_block_minutes: int = 5  # ±5 min before/after NFP
+    fomc_block_minutes: int = 5  # ±5 min before/after FOMC
 
 
 class ExecutionGuard:
@@ -236,7 +236,7 @@ class ExecutionGuard:
                 utc_now.day == day):
                 block_start = hour * 60 + minute
                 block_end = block_start + duration
-                if block_start - 30 <= current_minutes <= block_end + 30:
+                if block_start - self.config.nfp_block_minutes <= current_minutes <= block_end + self.config.nfp_block_minutes:
                     return True
         return False
     

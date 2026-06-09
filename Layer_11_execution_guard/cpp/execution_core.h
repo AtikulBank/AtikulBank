@@ -30,14 +30,14 @@ namespace atikul::execution {
 
 // ── Constants ─────────────────────────────────────────────────────
 
-constexpr double MAX_SPREAD_BPS = 50.0;
+constexpr double ATR_SPREAD_MULTIPLIER = 0.10;  // Spread < ATR × 0.10
 constexpr double MAX_DAILY_LOSS_PCT = 0.03;   // 3%
 constexpr double MAX_WEEKLY_LOSS_PCT = 0.07;  // 7%
 constexpr double MAX_DRAWDOWN_PCT = 0.10;     // 10%
 constexpr int32_t MAX_CONCURRENT_POSITIONS = 3;
 constexpr int64_t HEARTBEAT_TIMEOUT_NS = 30'000'000'000LL;  // 30 seconds in ns
-constexpr int32_t NFP_BLOCK_MINUTES = 30;     // Block 30 min before/after NFP
-constexpr int32_t FOMC_BLOCK_MINUTES = 60;    // Block 60 min before/after FOMC
+constexpr int32_t NFP_BLOCK_MINUTES = 5;      // Block ±5 min before/after NFP
+constexpr int32_t FOMC_BLOCK_MINUTES = 5;     // Block ±5 min before/after FOMC
 
 // ── Nanosecond Timer ──────────────────────────────────────────────
 
@@ -119,19 +119,19 @@ public:
 // ── Spread Validator ──────────────────────────────────────────────
 
 class SpreadValidator {
-    double max_spread_bps_;
+    double atr_spread_multiplier_;
     double recent_spreads_[100];
     int32_t spread_idx_;
     int32_t violation_count_;
     
 public:
-    SpreadValidator(double max_bps = MAX_SPREAD_BPS) 
-        : max_spread_bps_(max_bps), spread_idx_(0), violation_count_(0) {
+    SpreadValidator(double atr_mult = ATR_SPREAD_MULTIPLIER) 
+        : atr_spread_multiplier_(atr_mult), spread_idx_(0), violation_count_(0) {
         memset(recent_spreads_, 0, sizeof(recent_spreads_));
     }
     
-    bool validate(double bid, double ask) noexcept {
-        if (bid <= 0 || ask <= 0 || bid > ask) {
+    bool validate(double bid, double ask, double atr) noexcept {
+        if (bid <= 0 || ask <= 0 || bid > ask || atr <= 0) {
             violation_count_++;
             return false;
         }
@@ -143,7 +143,9 @@ public:
         recent_spreads_[spread_idx_ % 100] = spread_bps;
         spread_idx_++;
         
-        if (spread_bps > max_spread_bps_) {
+        // Spread must be less than ATR * multiplier
+        double max_allowed_spread = atr * atr_spread_multiplier_ * 10000.0;
+        if (spread_bps > max_allowed_spread) {
             violation_count_++;
             return false;
         }
@@ -221,7 +223,8 @@ public:
                 int32_t block_start = blocked_[i].hour_minutes;
                 int32_t block_end = block_start + blocked_[i].duration_minutes;
                 
-                if (current_minutes >= block_start - 30 && current_minutes <= block_end + 30) {
+                // Block ±5 minutes before/after
+                if (current_minutes >= block_start - NFP_BLOCK_MINUTES && current_minutes <= block_end + NFP_BLOCK_MINUTES) {
                     return true;
                 }
             }

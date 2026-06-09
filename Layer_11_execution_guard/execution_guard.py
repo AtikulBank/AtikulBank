@@ -151,16 +151,21 @@ class ExecutionGuard:
         else:
             ec.fix_heartbeat_ok = True  # No heartbeat yet
         
-        # 2. Spread
+        # 2. Spread < ATR × 0.10
         if bid > 0 and ask > 0 and bid <= ask:
             mid = (bid + ask) / 2
             spread_bps = ((ask - bid) / mid) * 10000
-            ec.spread_ok = spread_bps <= self.config.max_spread_bps
+            # Use ATR-based spread check
+            # ATR is typically calculated from recent price data
+            # For now, use a default ATR or calculate from spread history
+            atr = self._calculate_atr()
+            max_allowed_spread = atr * self.config.atr_spread_multiplier * 10000
+            ec.spread_ok = spread_bps <= max_allowed_spread if atr > 0 else spread_bps <= 50.0
             self._spread_history.append(spread_bps)
             if len(self._spread_history) > 100:
                 self._spread_history.pop(0)
             if not ec.spread_ok:
-                failed.append(f"Spread {spread_bps:.1f} bps > {self.config.max_spread_bps}")
+                failed.append(f"Spread {spread_bps:.1f} bps > ATR*0.10 ({max_allowed_spread:.1f} bps)")
         else:
             ec.spread_ok = False
             failed.append("Invalid bid/ask")
@@ -238,6 +243,15 @@ class ExecutionGuard:
                 block_end = block_start + duration
                 if block_start - self.config.nfp_block_minutes <= current_minutes <= block_end + self.config.nfp_block_minutes:
                     return True
+    def _calculate_atr(self) -> float:
+        """Calculate Average True Range from spread history."""
+        if len(self._spread_history) < 14:
+            return 10.0  # Default ATR for XAUUSD
+        
+        # Use recent spreads as proxy for ATR
+        recent = self._spread_history[-14:]
+        return sum(recent) / len(recent)
+
         return False
     
     def on_position_open(self) -> None:

@@ -246,8 +246,8 @@ class ExecutionGuard:
     def _calculate_atr(self) -> float:
         """Calculate Average True Range from spread history."""
         if len(self._spread_history) < 14:
-            return 10.0  # Default ATR for XAUUSD
-        
+            return 1.0  # Default ATR for XAUUSD (1 pip)
+
         # Use recent spreads as proxy for ATR
         recent = self._spread_history[-14:]
         return sum(recent) / len(recent)

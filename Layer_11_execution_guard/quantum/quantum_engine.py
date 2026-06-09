@@ -70,11 +70,15 @@ class QuantumRandomNumberGenerator:
             self._fill_pool()
         
         # Use von Neumann extractor for better randomness
-        idx1 = int(abs(self._entropy_pool.pop()) * 1000) % len(self._entropy_pool)
-        idx2 = int(abs(self._entropy_pool.pop()) * 1000) % len(self._entropy_pool)
+        idx1 = int(abs(self._entropy_pool.pop()) * 1000) % max(len(self._entropy_pool), 1)
+        idx2 = int(abs(self._entropy_pool.pop()) * 1000) % max(len(self._entropy_pool), 1) if self._entropy_pool else 0
         
-        val1 = self._entropy_pool[idx1]
-        val2 = self._entropy_pool[idx2]
+        if self._entropy_pool:
+            val1 = self._entropy_pool[idx1]
+            val2 = self._entropy_pool[idx2] if idx2 < len(self._entropy_pool) else 0
+        else:
+            val1 = 0.5
+            val2 = 0.5
         
         # Von Neumann extraction
         if val1 > 0 and val2 > 0:
@@ -245,11 +249,11 @@ class QuantumSuperposition:
         norm = np.sqrt(sum(abs(a)**2 for a in amplitudes))
         amplitudes = [a / norm for a in amplitudes]
         
-        # Calculate probabilities
+        # Calculate probabilities for candidates only
         probabilities = {}
         for i, risk in enumerate(potential_risks):
             prob = abs(amplitudes[i]) ** 2
-            probabilities[f"scenario_{i}"] = prob
+            probabilities[f"risk_{i}"] = prob
         
         # Collapse to optimal state
         # Select based on risk-return tradeoff
